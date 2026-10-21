@@ -4,6 +4,14 @@ A local research tool and a browser-local dashboard for Kirat Creations signage,
 
 **Dashboard:** https://kumarvnsh.github.io/kirat-leads-tool/
 
+## Mac app
+
+On this Mac, open **Kirat Lead Desk.app** in your Applications folder (also searchable in Spotlight). It starts the local service and displays the dashboard inside its own native Mac window, with standard menus, file pickers and Save dialogs. No browser or Terminal is needed for normal use. First launch installs Harvey project dependencies if needed. Use **Find leads** to discover candidates and run Codex web research, then **Review researched leads** to check/import results. Use **Stop** to cancel a job and **Quit local service** when finished.
+
+For another checkout on a Mac, double-click `Install Kirat Lead Desk.command` once. It builds a native Swift/WebKit app under `~/Applications` (requires Apple Command Line Tools); keep the project folder in place because the launcher points to it. Node 20+ and Python 3.11+ must be installed; setup reports a missing runtime. The installed Codex CLI must be signed in for web research. Dependencies and runtime setup need internet access.
+
+Research uses your local ChatGPT/Codex login, live web search, an empty temporary working directory, a read-only sandbox, and disabled shell/app/plugin tools. The model returns JSON; the local app validates and stages it for review. Pages has no local controls or job API. A bounded research job can take several minutes and consumes subscription usage. If web research fails, a manual prompt is kept in `.local/research-prompt.txt`.
+
 ## Start locally
 
 Requires Node 20+; Harvey discovery also needs Python 3.11+ and Git.
@@ -53,10 +61,10 @@ The first exports discovered companies from the local Harvey database. The secon
 
 - Lead batches, exports, credentials, Harvey checkout and database stay out of Git.
 - `.local/` contains research work and installed dependencies. Protect it like your backups.
-- GitHub Pages publishes only the app shell. A public page does not make your browser's records public or synchronize them elsewhere.
+- GitHub Pages publishes only the app shell. The Mac app has its own persistent register, separate from Safari, Chrome and Pages. Use JSON backup/import to move records. A public page does not publish or synchronize these records.
 - Research runs only when started locally. It pauses while your Mac is off.
 - Discovery uses free OSM; locally authenticated model research consumes the selected subscription's usage. There is no enforced subscription percentage or automatic paid API fallback.
-- The dashboard loads React/htm and fonts from external CDNs, so it needs an internet connection on first load.
+- React/htm are bundled locally. Fonts may load from Google Fonts, with system-font fallbacks. Discovery and research require internet access.
 
 ## Test and deploy
 
@@ -65,6 +73,8 @@ npm test
 npm run build
 ```
 
-The build allowlists four files: `index.html`, `lead-core.js`, `browser-store.js`, `.nojekyll`. GitHub Actions tests every push/PR and deploys only main to Pages. It never executes research or needs model/mail credentials. To deploy elsewhere, enable Pages with **GitHub Actions** as source.
+The build allowlists `index.html`, `lead-core.js`, `browser-store.js`, `.nojekyll`, the two logo assets and vendored browser libraries. Local controls and job endpoints are excluded. GitHub Actions tests every push/PR and deploys only main to Pages. It never executes research or needs model/mail credentials. To deploy elsewhere, enable Pages with **GitHub Actions** as source.
 
 Harvey is installed separately at commit `0041b6a3a9930426fb8f9beba64eb62438c96711`. See [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). Transitive Python packages resolve at installation within upstream's ranges; re-run the pilot when updating dependencies.
+
+The company logo is supplied by Kirat Creations. The app icon uses the logo symbol on a light rounded square; the original SVG is retained in assets.

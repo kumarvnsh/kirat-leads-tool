@@ -24,4 +24,4 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-The dashboard loads React 18, React DOM (MIT) and htm (Apache-2.0) from their public CDNs. Their upstream license notices remain in those distributed packages.
+The dashboard bundles React 18.3.1, React DOM (MIT) and htm 3.1.1 (Apache-2.0). Full license texts are included under assets/vendor. The company logo is supplied by Kirat Creations.

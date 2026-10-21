@@ -5,9 +5,11 @@
   "description": "Local Kirat opportunity research and a browser-local lead desk",
   "scripts": {
     "start": "node bin/kirat.js serve",
-    "test": "node test/test-core.js && node test/test-tool.js && node test/test-server.js",
+    "test": "node test/test-core.js && node test/test-tool.js && node test/test-server.js && node test/test-local.js",
     "build": "node scripts/build.js",
-    "doctor": "node bin/kirat.js doctor"
+    "doctor": "node bin/kirat.js doctor",
+    "app": "node bin/kirat.js app",
+    "install:mac": "zsh scripts/install-mac-app.sh"
   },
   "engines": {
     "node": ">=20"

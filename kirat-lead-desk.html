@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="en">
 <meta charset="utf-8">
+<link rel="icon" type="image/png" href="assets/kirat-icon.png">
 <title>Kirat Lead Desk</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -46,6 +47,8 @@ a { color: var(--accent) }
 .brand { display: flex; align-items: center; gap: 12px; margin-right: auto; min-width: 0 }
 .plate { background: var(--ink); color: var(--bg); font-family: var(--f-display); font-weight: 800; font-stretch: 125%;
   letter-spacing: .06em; font-size: 13px; padding: 7px 9px 6px; border-radius: 3px; box-shadow: inset 0 0 0 2px var(--bg), 0 0 0 1px var(--ink) }
+.company-logo { width: 260px; height: 90px; object-fit: cover; object-position: center; background: #fffcf5; border-radius: 8px }
+@media(max-width:600px) { .company-logo {width:170px;height:66px} .brand small {max-width:155px} }
 .brand h1 { font-size: 22px; font-weight: 750; font-stretch: 112%; letter-spacing: -.01em; line-height: 1.1 }
 .brand small { display: block; color: var(--muted); font-size: 12.5px }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center }
@@ -185,9 +188,9 @@ tbody tr.picked td { background: var(--accent-soft) }
 
 <div id="root"><p style="padding:24px 0">Loading Kirat Lead Desk…</p></div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/htm@3.1.1/dist/htm.umd.js"></script>
+<script src="assets/vendor/react.production.min.js"></script>
+<script src="assets/vendor/react-dom.production.min.js"></script>
+<script src="assets/vendor/htm.umd.js"></script>
 <script src="lead-core.js"></script>
 <script src="browser-store.js"></script>
 <script>
@@ -224,7 +227,7 @@ function SafeLink({ href, children }) {
   return K.isHttpUrl(href) ? html`<a href=${href} target="_blank" rel="noopener noreferrer">${children || href}</a>` : html`<span>${children || href || '—'}</span>`;
 }
 function SaveBadge({ st, onClick }) {
-  const label = { loading: 'Opening browser storage…', saved: 'Saved in this browser', saving: 'Saving…', unsaved: 'Unsaved — download backup', error: 'Not loaded' }[st.status];
+  const label = { loading: 'Opening browser storage…', saved: window.KiratNative ? 'Saved on this Mac' : 'Saved in this browser', saving: 'Saving…', unsaved: 'Unsaved — download backup', error: 'Not loaded' }[st.status];
   const click = st.status === 'unsaved' || st.status === 'error';
   return html`<button class=${'save ' + st.status} onClick=${click ? onClick : undefined} disabled=${!click} aria-live="polite" title=${st.error || ''}>${label}</button>`;
 }
@@ -516,7 +519,7 @@ function App() {
 
   return html`<div class="wrap">
     <header class="top">
-      <div class="brand"><span class="plate" aria-hidden="true">KIRAT</span><div><h1>Kirat Lead Desk</h1><small>Signage, graphics & display leads · India and Delhi NCR</small></div></div>
+      <div class="brand"><img class="company-logo" src="assets/kirat-logo.svg#svgView(viewBox(10,33,232,79))" alt="Kirat Creations" /><div><h1>Lead Desk</h1><small>Signage, graphics & display leads · India and Delhi NCR</small></div></div>
       <div class="actions">
         <${SaveBadge} st=${st} onClick=${st.status === 'error' ? load : exportBackup} />
         <button class="primary" onClick=${() => setImporting(true)} disabled=${!canWrite}>Import batch</button>
@@ -528,7 +531,7 @@ function App() {
       </div>
     </header>
 
-    <div class="notice"><span>Research runs on your Mac. Import a reviewed JSON batch here. Leads save in this browser only; export backups regularly.</span><span>Today in India: <b class="num">${K.formatDate(today)}</b></span></div>
+    <div class="notice"><span>${window.KiratNative ? "Research runs locally. Your register saves on this Mac; export backups regularly." : "Research runs on your Mac. Import a reviewed JSON batch here. Leads save in this browser only; export backups regularly."}</span><span>Today in India: <b class="num">${K.formatDate(today)}</b></span></div>
 
     ${st.mode === 'load_error' ? html`<div class="banner" role="alert"><strong>Your saved leads did not load.</strong><span>${st.error}</span>
       <button onClick=${load}>Try again</button><button class="ghost" onClick=${() => store.useMemory()}>Work without saving</button></div>` : null}
@@ -536,6 +539,8 @@ function App() {
       <button onClick=${exportBackup}>Export backup</button></div>` : null}
     ${st.mode === 'personal' && st.status === 'unsaved' ? html`<div class="banner" role="alert"><strong>Unsaved — download backup</strong><span>${st.error}</span>
       <button onClick=${() => store.retry()}>Retry save</button><button onClick=${exportBackup}>Export backup</button></div>` : null}
+
+    ${window.KiratLocalPanel ? html`<${window.KiratLocalPanel} getRegister=${() => JSON.parse(K.backupJson(leadsRef.current))} onReview=${batch => setImporting({ text: JSON.stringify(batch) })} />` : null}
 
     <div class="summary">
       <div class="tile"><div class="k">Total leads</div><div class="v">${sum.total}</div></div>
@@ -587,7 +592,8 @@ function App() {
     ` : st.status === 'loading' ? html`<div class="empty"><h2>Opening your private register…</h2><p>Import stays off until your saved leads have loaded, so nothing can overwrite them.</p></div>`
     : html`<div class="empty">
       <h2>No leads yet</h2>
-      <p>This register starts empty and only holds leads you import. It never finds leads on its own and never contacts anyone.</p>
+      ${window.KiratLocalPanel ? html`<p>Choose <b>Find leads</b> above to research a batch. Results stay separate until you review and import them.</p>
+      <ol><li>Choose your NCR city and click <b>Find leads</b>.</li><li>When research finishes, choose <b>Review researched leads</b>.</li><li>Check source links and duplicate decisions, then confirm import.</li><li>Export a backup regularly. No outreach is sent automatically.</li></ol>` : html`      <p>This register starts empty and only holds leads you import. It never finds leads on its own and never contacts anyone.</p>
       <ol>
         <li>Check your Claude usage screen.</li>
         <li>Choose <b>Copy research prompt</b> (it lists every lead you already have), open the research Project and paste it into a new chat. Or run the local tool to prepare a research prompt, then import the resulting JSON file.</li>
@@ -595,6 +601,7 @@ function App() {
         <li>Choose <b>Import batch</b>, paste the JSON, review the rows, then confirm.</li>
         <li>Choose <b>Export backup</b>. Tomorrow's research uses that file to skip known leads.</li>
       </ol>
+`}
       <div><button class="primary" onClick=${() => setImporting(true)} disabled=${!canWrite}>Import batch</button></div>
     </div>`}
 

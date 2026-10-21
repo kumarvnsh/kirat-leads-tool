@@ -19,13 +19,13 @@ function doctor() {
 }
 function serve(port = 4173) {
   if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error('Port must be 1024–65535');
-  const assets = {'/':'kirat-lead-desk.html','/index.html':'kirat-lead-desk.html','/lead-core.js':'lead-core.js','/browser-store.js':'browser-store.js'};
+  const assets = {'/':'kirat-lead-desk.html','/index.html':'kirat-lead-desk.html','/lead-core.js':'lead-core.js','/browser-store.js':'browser-store.js','/assets/kirat-logo.svg':'assets/kirat-logo.svg','/assets/kirat-icon.png':'assets/kirat-icon.png','/assets/vendor/react.production.min.js':'assets/vendor/react.production.min.js','/assets/vendor/react-dom.production.min.js':'assets/vendor/react-dom.production.min.js','/assets/vendor/htm.umd.js':'assets/vendor/htm.umd.js'};
   const server = http.createServer((req,res) => {
     if (!['GET','HEAD'].includes(req.method)) {res.writeHead(405);res.end();return;}
     if (req.headers.host !== '127.0.0.1:'+port && req.headers.host !== 'localhost:'+port) {res.writeHead(403);res.end();return;}
     const asset = assets[req.url.split('?')[0]];
     if (!asset) {res.writeHead(404);res.end('Not found');return;}
-    res.writeHead(200,{'Content-Type':asset.endsWith('.js')?'text/javascript; charset=utf-8':'text/html; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});
+    res.writeHead(200,{'Content-Type':asset.endsWith('.png')?'image/png':asset.endsWith('.svg')?'image/svg+xml':asset.endsWith('.js')?'text/javascript; charset=utf-8':'text/html; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});
     res.end(req.method === 'HEAD'?'':fs.readFileSync(path.join(root,asset)));
   });
   server.on('error',e => { console.error('Server: '+e.message);process.exitCode=1; });
@@ -33,7 +33,8 @@ function serve(port = 4173) {
 }
 try {
   const [command='help',...args] = process.argv.slice(2);
-  if (command === 'serve') serve(args[0] ? Number(args[0]):4173);
+  if (command === 'app') require('../lib/local-server').start();
+  else if (command === 'serve') serve(args[0] ? Number(args[0]):4173);
   else if (command === 'doctor') doctor();
   else if (command === 'validate') {
     const batch = R.validateBatch(fs.readFileSync(file(args[0]),'utf8'));

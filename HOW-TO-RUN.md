@@ -1,4 +1,11 @@
-# Daily use
+# Daily use on this Mac
+
+Open **Kirat Lead Desk.app** from your Applications folder or Spotlight. Choose a city, click **Find leads**, then review the returned batch and confirm import. Export backups regularly. Use Stop to cancel research. Cmd-Q quits the app and local service.
+
+Your logo is used in the native app icon and dashboard header. No browser or Terminal is required for normal use. The Mac app has its own register; migrate existing browser or Artifact data with JSON backup/import.
+
+The advanced command-line workflow remains available below.
+
 
 1. Run `npm start` or open https://kumarvnsh.github.io/kirat-leads-tool/.
 2. Export your latest register as a JSON backup.

@@ -28,5 +28,9 @@ const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kirat-test-'));
 atomicWrite(path.join(dir, 'batch.json'), fixture);
 assert.equal(fs.readFileSync(path.join(dir, 'batch.json'), 'utf8'), fixture);
 fs.rmSync(dir, { recursive:true });
-assert.deepEqual(fs.readdirSync(build()).sort(), ['.nojekyll','browser-store.js','index.html','lead-core.js']);
+assert.deepEqual(fs.readdirSync(build()).sort(), ['.nojekyll','assets','browser-store.js','index.html','lead-core.js']);
 console.log('tool: CSV, candidates, validation, exclusions, atomic writes and deployment allowlist passed');
+
+assert.deepEqual(fs.readdirSync(path.join(build(),'assets')).sort(), ['kirat-icon.png','kirat-logo.svg','vendor']);
+
+assert.throws(() => require('../lib/research').validateResearchResult(JSON.stringify({schema_version:1,batch_date:'2026-10-21',leads:[],status:'blocked',reason:'Web tool unavailable'})), /Web tool unavailable/);
