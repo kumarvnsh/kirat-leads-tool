@@ -37,4 +37,4 @@ Run existing core tests and add focused checks for candidate conversion, invalid
 Perform a small live discovery pilot only after upstream setup and login checks succeed; report separately which research stages actually ran and which require manual input. Never claim qualification or verification merely because a candidate was found.
 
 ## Review status
-Architecture direction accepted in chat. Written implementation contract awaits user review before planning and coding, as requested by the brainstorming workflow.
+Architecture and written implementation contract approved in chat on 21 October 2026. Implementation and deployment verified; see ../verification/2026-10-21-local-lead-tool.md.
