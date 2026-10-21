@@ -1,0 +1,11 @@
+.local/
+research/
+node_modules/
+dist/
+.env*
+*.log
+.DS_Store
+*.db*
+exports/
+.claude/
+__pycache__/

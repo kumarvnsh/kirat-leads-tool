@@ -1,0 +1,610 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Kirat Lead Desk</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,500..800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: one working column — header bar, summary strip, filter bar, lead table; details and import open as a right-hand sheet. */
+:root {
+  --bg: #f4efe4; --surface: #fffcf5; --sunk: #ebe4d6; --ink: #24211d; --muted: #6a6358; --line: #ddd3c1;
+  --accent: #c9560c; --accent-ink: #ffffff; --accent-soft: #f8e2cf;
+  --good: #2c7a4b; --good-soft: #dcefe2; --warn: #9a6512; --warn-soft: #f6e8c8; --bad: #b0281f; --bad-soft: #f7dcd8;
+  --shade: rgba(36, 33, 29, .38);
+  --f-display: "Archivo", "Arial Narrow", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --r: 6px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #1b1a18; --surface: #24221f; --sunk: #2d2a26; --ink: #efe8db; --muted: #a89f91; --line: #3b3732;
+  --accent: #f08a3c; --accent-ink: #1b1a18; --accent-soft: #4a2e19;
+  --good: #79c795; --good-soft: #1f3a2a; --warn: #e2b562; --warn-soft: #3d3019; --bad: #f28b80; --bad-soft: #45231f;
+  --shade: rgba(0, 0, 0, .55); color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #1b1a18; --surface: #24221f; --sunk: #2d2a26; --ink: #efe8db; --muted: #a89f91; --line: #3b3732;
+  --accent: #f08a3c; --accent-ink: #1b1a18; --accent-soft: #4a2e19;
+  --good: #79c795; --good-soft: #1f3a2a; --warn: #e2b562; --warn-soft: #3d3019; --bad: #f28b80; --bad-soft: #45231f;
+  --shade: rgba(0, 0, 0, .55); color-scheme: dark }
+
+* { box-sizing: border-box }
+body { background: var(--bg); color: var(--ink); font: 15px/1.5 var(--f-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 0 48px }
+.wrap { max-width: 1240px; margin: 0 auto; display: grid; gap: 18px }
+h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; margin: 0 }
+a { color: var(--accent) }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px }
+.mono { font-family: var(--f-mono); font-size: .86em }
+.muted { color: var(--muted) }
+.num { font-variant-numeric: tabular-nums }
+
+/* header */
+.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line);
+  display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; padding-block: 14px }
+.brand { display: flex; align-items: center; gap: 12px; margin-right: auto; min-width: 0 }
+.plate { background: var(--ink); color: var(--bg); font-family: var(--f-display); font-weight: 800; font-stretch: 125%;
+  letter-spacing: .06em; font-size: 13px; padding: 7px 9px 6px; border-radius: 3px; box-shadow: inset 0 0 0 2px var(--bg), 0 0 0 1px var(--ink) }
+.brand h1 { font-size: 22px; font-weight: 750; font-stretch: 112%; letter-spacing: -.01em; line-height: 1.1 }
+.brand small { display: block; color: var(--muted); font-size: 12.5px }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center }
+button, .btn { font: 500 14px/1 var(--f-body); border-radius: var(--r); border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+  padding: 9px 13px; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; min-height: 38px }
+button:hover:not(:disabled), .btn:hover { border-color: var(--ink) }
+button:disabled { opacity: .5; cursor: not-allowed }
+.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600 }
+.primary:hover:not(:disabled) { border-color: var(--ink) }
+.ghost { background: transparent }
+.danger { color: var(--bad); border-color: var(--bad) }
+.linkish { background: none; border: 0; padding: 0; min-height: 0; color: var(--accent); text-decoration: underline; font-weight: 500 }
+
+.save { font-size: 12.5px; font-weight: 600; padding: 5px 10px; border-radius: 99px; display: inline-flex; gap: 6px; align-items: center; border: 1px solid transparent; min-height: 0 }
+.save::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor }
+.save.saved { color: var(--good); background: var(--good-soft) }
+.save.saving, .save.loading { color: var(--warn); background: var(--warn-soft) }
+.save.unsaved, .save.error { color: var(--bad); background: var(--bad-soft); border-color: var(--bad); cursor: pointer }
+
+.notice { font-size: 13px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: -4px }
+.banner { border: 1px solid var(--bad); background: var(--bad-soft); color: var(--ink); border-radius: var(--r); padding: 12px 14px;
+  display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center }
+.banner strong { color: var(--bad) }
+.banner.inbox { border-color: var(--accent); background: var(--accent-soft) }
+.banner.inbox strong { color: var(--accent) }
+
+/* summary */
+.summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden }
+.tile { background: var(--surface); padding: 12px 16px; text-align: left; border: 0; border-radius: 0; display: block; min-height: 0; cursor: default }
+button.tile { cursor: pointer }
+button.tile:hover:not(:disabled) { background: var(--sunk) }
+.tile .k { font-size: 12px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); font-weight: 600 }
+.tile .v { font-family: var(--f-display); font-weight: 750; font-stretch: 112%; font-size: 30px; line-height: 1.15; font-variant-numeric: tabular-nums }
+.tile.hot .v { color: var(--accent) }
+.tile.on { box-shadow: inset 0 -3px 0 var(--accent) }
+
+/* filters */
+.filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: end }
+.field { display: grid; gap: 4px; font-size: 12px; color: var(--muted); font-weight: 600; letter-spacing: .02em; min-width: 0 }
+.field.grow { flex: 1 1 220px }
+input, select, textarea { font: 400 14px/1.4 var(--f-body); color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 8px 10px; min-height: 38px; width: 100%; min-width: 0 }
+textarea { resize: vertical }
+.count { font-size: 13px; color: var(--muted); margin-left: auto; align-self: center }
+
+/* table */
+.tablebox { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); overflow-x: auto }
+table { width: 100%; border-collapse: collapse; font-size: 14px }
+th { text-align: left; font-size: 11.5px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); font-weight: 600; padding: 10px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; background: var(--sunk) }
+td { padding: 11px 12px; border-bottom: 1px solid var(--line); vertical-align: top }
+tbody tr { cursor: pointer }
+tbody tr:hover td { background: var(--sunk) }
+tbody tr:last-child td { border-bottom: 0 }
+td .co { font-weight: 600; color: var(--ink); text-align: left; font-size: 14px }
+.opp { max-width: 34ch; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden }
+.chip { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 99px; background: var(--sunk); color: var(--ink); white-space: nowrap }
+.st-New { background: var(--accent-soft); color: var(--accent) }
+.st-Qualified { background: var(--good-soft); color: var(--good) }
+.st-Closed { background: var(--sunk); color: var(--muted) }
+.st-Contacted, .st-Follow-up { background: var(--warn-soft); color: var(--warn) }
+.pick { width: 36px }
+.pick input { width: 18px; height: 18px; min-height: 0; margin: 2px 0 0; cursor: pointer; accent-color: var(--accent) }
+tbody tr.picked td { background: var(--accent-soft) }
+.bulkbar { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; background: var(--surface); border: 1px solid var(--accent); border-radius: var(--r); padding: 10px 14px }
+.flag { font-size: 11.5px; font-weight: 600; color: var(--warn) }
+.flag.bad { color: var(--bad) }
+.meter { display: inline-flex; gap: 2px; vertical-align: middle; margin-right: 6px }
+.meter i { width: 5px; height: 12px; background: var(--line); border-radius: 1px }
+.meter i.on { background: var(--accent) }
+
+@media (max-width: 760px) {
+  .summary { grid-template-columns: repeat(2, minmax(0, 1fr)) }
+  table, tbody, tr, td { display: block }
+  thead { display: none }
+  tbody tr { padding: 10px 14px; border-bottom: 1px solid var(--line); display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px }
+  td { padding: 0; border: 0; min-width: 0 }
+  td[data-l]::before { content: attr(data-l); display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600 }
+  td.wide, td.pick { grid-column: 1 / -1 }
+  tbody tr:hover td { background: none }
+  .opp { max-width: none }
+}
+
+/* empty */
+.empty { background: var(--surface); border: 1px dashed var(--line); border-radius: var(--r); padding: 28px clamp(16px, 4vw, 40px); display: grid; gap: 12px; max-width: 760px }
+.empty h2 { font-size: 22px; font-weight: 700; font-stretch: 110% }
+.empty ol { margin: 0; padding-left: 20px; display: grid; gap: 6px }
+.empty p { margin: 0; max-width: 65ch }
+
+/* sheet */
+.shade { position: fixed; inset: 0; background: var(--shade); z-index: 20 }
+.sheet { position: fixed; top: 0; right: 0; bottom: 0; width: min(720px, 100%); background: var(--bg); z-index: 21; overflow-y: auto;
+  border-left: 1px solid var(--line); display: grid; align-content: start; gap: 16px;
+  padding: calc(18px + env(safe-area-inset-top, 0px)) max(20px, env(safe-area-inset-right, 0px)) calc(28px + env(safe-area-inset-bottom, 0px)) 20px }
+.sheet-head { display: flex; gap: 12px; align-items: start }
+.sheet-head > div { flex: 1; min-width: 0 }
+.sheet-head h2 { font-size: 24px; font-weight: 750; font-stretch: 110%; overflow-wrap: anywhere }
+.box { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px; display: grid; gap: 10px; min-width: 0 }
+.box h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; font-weight: 700; color: var(--muted) }
+.box p { margin: 0; overflow-wrap: anywhere }
+.kv { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; font-size: 14px }
+.kv dt { color: var(--muted) }
+.kv dd { margin: 0; overflow-wrap: anywhere; min-width: 0 }
+.ev { border-left: 3px solid var(--line); padding-left: 12px; display: grid; gap: 2px; overflow-wrap: anywhere }
+.remind { font-size: 13px; background: var(--warn-soft); color: var(--ink); border-radius: var(--r); padding: 10px 12px }
+.remind b { color: var(--warn) }
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px }
+@media (max-width: 520px) { .grid2 { grid-template-columns: 1fr } }
+.bars { display: grid; gap: 6px }
+.bar { display: grid; grid-template-columns: 9.5em 1fr 3em; gap: 10px; align-items: center; font-size: 13.5px }
+.bar .track { display: flex; gap: 3px }
+.bar .track i { flex: 1; height: 10px; background: var(--line); border-radius: 2px }
+.bar .track i.on { background: var(--accent) }
+.contact { display: grid; gap: 4px; padding: 8px 0; border-top: 1px solid var(--line) }
+.contact:first-of-type { border-top: 0 }
+.contact .val { font-family: var(--f-mono); user-select: all; overflow-wrap: anywhere }
+
+/* import */
+.tabs { display: flex; gap: 6px }
+.tabs button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink) }
+.err { color: var(--bad); background: var(--bad-soft); border-radius: var(--r); padding: 10px 12px; font-size: 14px; overflow-wrap: anywhere }
+.err ul, .warnlist { margin: 4px 0 0; padding-left: 18px }
+.prow { border-top: 1px solid var(--line); padding-top: 10px; display: grid; gap: 6px }
+.prow:first-of-type { border-top: 0; padding-top: 0 }
+.prow-head { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center }
+.prow-head select { width: auto }
+.kind-new { background: var(--good-soft); color: var(--good) }
+.kind-related { background: var(--accent-soft); color: var(--accent) }
+.kind-duplicate, .kind-batch_duplicate { background: var(--warn-soft); color: var(--warn) }
+.diff { font-size: 13px; display: grid; gap: 2px; background: var(--sunk); border-radius: var(--r); padding: 8px 10px; overflow-wrap: anywhere }
+.check { display: flex; gap: 8px; align-items: start; font-size: 14px }
+.check input { width: auto; min-height: 0; margin-top: 3px }
+.footer-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end }
+
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(18px + env(safe-area-inset-bottom, 0px)); z-index: 40;
+  background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: var(--r); font-size: 14px; max-width: calc(100% - 32px) }
+@media (prefers-reduced-motion: no-preference) { .sheet { animation: slide .18s ease-out } @keyframes slide { from { transform: translateX(24px); opacity: .6 } } }
+</style>
+
+<div id="root"><p style="padding:24px 0">Loading Kirat Lead Desk…</p></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/htm@3.1.1/dist/htm.umd.js"></script>
+<script src="lead-core.js"></script>
+<script src="browser-store.js"></script>
+<script>
+(function () {
+'use strict';
+const K = window.KiratCore;
+const { useState, useEffect, useMemo, useRef, useCallback } = React;
+const html = htm.bind(React.createElement);
+const STUDIO_URL = 'https://kiiratstudio.netlify.app/';
+const PROJECT_URL = 'https://claude.ai/project/01a154d6-50f6-76b5-b850-1364063ee356';
+// Daily starter prompt for the Claude Project, with the current register as the exclusion list.
+function researchPrompt(leads, today) {
+  const known = leads.map(l => '- ' + [l.company, l.branch_project, l.city, l.signal_type].join(' | '));
+  return [
+    "Run today's bounded Kirat research batch. Today is " + today + ' (Asia/Kolkata).',
+    'Find up to five new qualified opportunities, aiming for three pan-India retail/franchise leads and two Delhi NCR businesses. Prioritize openings, expansions, renovations or rebranding announced in the last 90 days. Include dated evidence links, honest unknowns and publicly listed business contacts. Return fewer if necessary. Keep the output concise and stop after this batch. Do not send outreach.',
+    'Give me the shortlist and an importable JSON batch: schema_version 1, batch_date ' + today + ', leads array, ids null, following the contract in claude-artifact-build-prompt.md.',
+    '',
+    known.length ? 'Already in my register (skip unless there is a new signal) - company | branch/project | city | signal:\n' + known.join('\n')
+      : 'My register is empty, so historical deduplication is incomplete.'
+  ].join('\n');
+}
+const SEGMENT_LABEL = { national_retail: 'National retail', ncr_local: 'Delhi NCR' };
+const SCORE_LABEL = { service_fit: 'Service fit', project_evidence: 'Project evidence', timing: 'Timing', contactability: 'Contactability' };
+const newId = () => (crypto && crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10));
+
+const createStore = window.createKiratStore;
+
+// ---------- small pieces ----------
+function Meter({ total }) {
+  return html`<span class="meter" aria-hidden="true">${Array.from({ length: 10 }, (_, i) => html`<i key=${i} class=${i < total ? 'on' : ''}></i>`)}</span>`;
+}
+function SafeLink({ href, children }) {
+  return K.isHttpUrl(href) ? html`<a href=${href} target="_blank" rel="noopener noreferrer">${children || href}</a>` : html`<span>${children || href || '—'}</span>`;
+}
+function SaveBadge({ st, onClick }) {
+  const label = { loading: 'Opening browser storage…', saved: 'Saved in this browser', saving: 'Saving…', unsaved: 'Unsaved — download backup', error: 'Not loaded' }[st.status];
+  const click = st.status === 'unsaved' || st.status === 'error';
+  return html`<button class=${'save ' + st.status} onClick=${click ? onClick : undefined} disabled=${!click} aria-live="polite" title=${st.error || ''}>${label}</button>`;
+}
+async function copyText(t, toast) {
+  try { await navigator.clipboard.writeText(t); toast('Copied'); } catch (e) { toast('Copy blocked here. Select the text and copy it manually.'); }
+}
+
+// ---------- detail sheet ----------
+function Detail({ lead, today, onChange, onDelete, onClose, toast }) {
+  const [confirmDel, setConfirmDel] = useState(false);
+  const total = K.scoreTotal(lead.score);
+  const age = K.daysBetween(lead.researched_on, today);
+  const set = (k) => (e) => onChange(lead.id, { [k]: e.target.value === '' && k === 'follow_up_date' ? null : e.target.value });
+  return html`
+  <div class="shade" onClick=${onClose}></div>
+  <aside class="sheet" role="dialog" aria-modal="true" aria-label=${'Lead: ' + lead.company}>
+    <div class="sheet-head">
+      <div>
+        <div class="muted">${SEGMENT_LABEL[lead.segment]} · ${lead.city}${lead.state ? ', ' + lead.state : ''}</div>
+        <h2>${lead.company}</h2>
+        <div>${lead.branch_project}</div>
+      </div>
+      <button class="ghost" onClick=${onClose} aria-label="Close details">Close</button>
+    </div>
+    <div class="remind"><b>Check sources yourself before contacting.</b> A correctly formatted link does not prove the page is reachable or accurate. Scores rank research priority; they do not predict a sale.</div>
+
+    <section class="box">
+      <h3>Signal evidence (reported)</h3>
+      <dl class="kv">
+        <dt>Signal</dt><dd>${lead.signal_type}</dd>
+        <dt>Published</dt><dd>${K.formatDate(lead.publication_date)}</dd>
+        <dt>Event date</dt><dd>${lead.event_date ? K.formatDate(lead.event_date) : 'Unknown'}</dd>
+        <dt>Researched</dt><dd>${K.formatDate(lead.researched_on)} ${age !== null ? html`<span class=${'muted' + (age > K.STALE_DAYS ? ' flag' : '')}>(${age} days ago${age > K.STALE_DAYS ? ' — old, re-check' : ''})</span>` : null}</dd>
+        <dt>Website</dt><dd>${lead.website ? html`<${SafeLink} href=${lead.website} />` : 'Unknown'}</dd>
+        <dt>Domain</dt><dd class="mono">${lead.domain || 'Unknown'}</dd>
+      </dl>
+      ${lead.evidence.map((e, i) => html`<div class="ev" key=${i}><${SafeLink} href=${e.url}>${e.title || e.url}<//><span>${e.summary}</span></div>`)}
+    </section>
+
+    <section class="box">
+      <h3>Signage opportunity (inferred, not confirmed)</h3>
+      <p>${lead.opportunity}</p>
+      <div style=${{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>${lead.services.map(s => html`<span class="chip" key=${s}>${s}</span>`)}</div>
+      <dl class="kv">
+        <dt>Buyer role to seek</dt><dd>${lead.buyer_role || 'Unknown'}</dd>
+        <dt>Confidence</dt><dd>${lead.confidence}</dd>
+        <dt>Next action</dt><dd>${lead.next_action || '—'}</dd>
+      </dl>
+    </section>
+
+    <section class="box">
+      <h3>People and public contacts</h3>
+      ${lead.contacts.length ? lead.contacts.map((c, i) => html`
+        <div class="contact" key=${i}>
+          <div><span class="chip">${c.type.replace('_', ' ')}</span> <span class=${c.verification === 'verified' ? '' : 'flag'}>${c.verification === 'verified' ? 'Verified' : c.type === 'person' ? 'Named in a public source — role may have changed' : 'Published only — deliverability not verified'}</span></div>
+          ${c.type === 'person' ? html`<div style=${{ display: 'flex', gap: '8px 12px', alignItems: 'baseline', flexWrap: 'wrap' }}><b>${c.value}</b><span class="muted">${c.role}</span>
+              <a href=${'https://www.linkedin.com/search/results/people/?keywords=' + encodeURIComponent(c.value + ' ' + lead.company)} target="_blank" rel="noopener noreferrer">Find on LinkedIn ↗</a></div>`
+          : c.type === 'contact_page' ? html`<${SafeLink} href=${c.value} />` : html`<div style=${{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}><span class="val">${c.value}</span><button class="linkish" onClick=${() => copyText(c.value, toast)}>Copy</button></div>`}
+          ${c.verification_evidence ? html`<div class="muted">Verification: ${c.verification_evidence}</div>` : null}
+          <div class="muted">Source: <${SafeLink} href=${c.source_url} /></div>
+        </div>`) : html`<p class="muted">No public contact found. Look for the ${lead.buyer_role || 'projects or procurement team'}.</p>`}
+    </section>
+
+    <section class="box">
+      <h3>Score ${total}/10</h3>
+      <div class="bars">${Object.keys(K.SCORE_RANGES).map(k => html`
+        <div class="bar" key=${k}><span>${SCORE_LABEL[k]}</span>
+          <span class="track">${Array.from({ length: K.SCORE_RANGES[k] }, (_, i) => html`<i key=${i} class=${i < lead.score[k] ? 'on' : ''}></i>`)}</span>
+          <span class="num muted">${lead.score[k]}/${K.SCORE_RANGES[k]}</span></div>`)}</div>
+    </section>
+
+    <section class="box">
+      <h3>Sales</h3>
+      <div class="grid2">
+        <label class="field">Owner<input id="f-owner" value=${lead.owner} onChange=${set('owner')} /></label>
+        <label class="field">Status<select id="f-status" value=${lead.status} onChange=${set('status')}>${K.STATUSES.map(s => html`<option key=${s}>${s}</option>`)}</select></label>
+        <label class="field">Follow-up date<input id="f-follow" type="date" value=${lead.follow_up_date || ''} onChange=${set('follow_up_date')} /></label>
+        <label class="field">Studio proposal reference<input id="f-studio" value=${lead.studio_reference} onChange=${set('studio_reference')} placeholder="Typed by you after creating it in Studio" /></label>
+      </div>
+      <label class="field">Notes<textarea id="f-notes" rows="5" value=${lead.notes} onChange=${set('notes')}></textarea></label>
+      <div class="muted" style=${{ fontSize: '13px' }}>Changing status records your progress only. Nothing is sent to anyone.</div>
+    </section>
+
+    <div style=${{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
+      <span class="muted mono">ID ${lead.id}</span>
+      <span style=${{ marginLeft: 'auto' }}></span>
+      ${confirmDel
+        ? html`<span>Delete this lead for good?</span><button class="danger" onClick=${() => onDelete(lead.id)}>Delete lead</button><button onClick=${() => setConfirmDel(false)}>Keep</button>`
+        : html`<button class="ghost danger" onClick=${() => setConfirmDel(true)}>Delete…</button>`}
+    </div>
+  </aside>`;
+}
+
+// ---------- import sheet ----------
+const ACTIONS = {
+  new: [['add', 'Add'], ['skip', 'Skip']],
+  related: [['add', 'Add as separate lead'], ['skip', 'Skip']],
+  duplicate: [['skip', 'Skip'], ['merge', 'Merge into saved lead'], ['separate', 'Keep separate']],
+  batch_duplicate: [['skip', 'Skip'], ['separate', 'Keep separate']]
+};
+const KIND_LABEL = { new: 'New', related: 'Same brand, other site', duplicate: 'Likely duplicate', batch_duplicate: 'Repeated in this file' };
+
+function Import({ leads, onApply, onClose, canWrite, initialText }) {
+  const [tab, setTab] = useState('paste');
+  const [text, setText] = useState(initialText || '');
+  const [parsed, setParsed] = useState(null);
+  const [preview, setPreview] = useState([]);
+  const [ackInvalid, setAckInvalid] = useState(false);
+  const fileRef = useRef(null);
+
+  const check = (t) => {
+    const p = K.parseEnvelope(t);
+    setParsed(p); setAckInvalid(false);
+    setPreview(p.fatal ? [] : K.classify(p.rows, leads));
+  };
+  const onFile = (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    if (f.size > K.MAX_BYTES) { setParsed({ fatal: 'File is ' + (f.size / 1048576).toFixed(1) + ' MB. The limit is 5 MB. Nothing was read.' }); return; }
+    const r = new FileReader();
+    r.onload = () => { setText(String(r.result)); check(String(r.result)); };
+    r.onerror = () => setParsed({ fatal: 'Could not read that file.' });
+    r.readAsText(f);
+  };
+  useEffect(() => { if (initialText) check(initialText); }, []);
+  const setRow = (i, patch) => setPreview(pv => pv.map((r, j) => j === i ? Object.assign({}, r, patch) : r));
+
+  const invalid = parsed && parsed.rows ? parsed.rows.filter(r => !r.lead) : [];
+  const writes = preview.filter(r => r.action !== 'skip').length;
+  const blocked = !canWrite || !writes || (invalid.length > 0 && !ackInvalid);
+
+  return html`
+  <div class="shade" onClick=${onClose}></div>
+  <aside class="sheet" role="dialog" aria-modal="true" aria-label="Import batch">
+    <div class="sheet-head"><div><h2>Import batch</h2><div class="muted">Research batch JSON from your Claude Project, or a backup you exported here. Nothing is saved until you confirm.</div></div>
+      <button class="ghost" onClick=${onClose}>Cancel</button></div>
+
+    ${!parsed || parsed.fatal ? html`
+      <div class="tabs" role="group" aria-label="Import source">
+        <button aria-pressed=${tab === 'paste'} onClick=${() => setTab('paste')}>Paste JSON</button>
+        <button aria-pressed=${tab === 'file'} onClick=${() => setTab('file')}>Choose file</button>
+      </div>
+      ${tab === 'paste' ? html`
+        <textarea id="import-text" rows="12" class="mono" placeholder='{"schema_version": 1, "batch_date": "YYYY-MM-DD", "leads": [ … ]}' value=${text} onChange=${e => setText(e.target.value)}></textarea>
+        <div class="footer-actions"><button class="primary" onClick=${() => check(text)} disabled=${!text.trim()}>Check batch</button></div>`
+      : html`<input id="import-file" ref=${fileRef} type="file" accept=".json,application/json" onChange=${onFile} />`}
+      ${parsed && parsed.fatal ? html`<div class="err" role="alert">${parsed.fatal}</div>` : null}
+    ` : html`
+      <div class="box">
+        <div><b>${parsed.kind === 'backup' ? 'Backup' : 'Research batch'}</b> <span class="muted">${parsed.kind === 'backup' ? 'exported ' + parsed.exported_at : 'dated ' + K.formatDate(parsed.batch_date)}</span></div>
+        <div class="num">${parsed.rows.length} row(s): ${preview.length} valid, ${invalid.length} with errors, ${preview.filter(r => r.kind === 'duplicate' || r.kind === 'batch_duplicate').length} likely duplicate(s).</div>
+        ${parsed.rows.length === 0 ? html`<div>This file has no leads. Nothing to import; your register is unchanged.</div>` : null}
+        <button class="linkish" onClick=${() => { setParsed(null); setPreview([]); }}>Use different input</button>
+      </div>
+
+      ${invalid.length ? html`<div class="err" role="alert"><b>${invalid.length} row(s) will not be imported until fixed in the research chat:</b>
+        <ul>${invalid.map(r => html`<li key=${r.index}><b>Row ${r.index + 1} · ${r.company}</b><ul>${r.errors.map((e, i) => html`<li key=${i}>${e}</li>`)}</ul></li>`)}</ul></div>` : null}
+
+      ${preview.length ? html`<section class="box">
+        <h3>Review rows</h3>
+        ${preview.some(r => r.kind === 'duplicate') ? html`<div class="prow-head muted">Set every likely duplicate to:
+          <button onClick=${() => setPreview(pv => pv.map(r => r.kind === 'duplicate' ? Object.assign({}, r, { action: 'merge' }) : r))}>Merge into saved lead</button>
+          <button onClick=${() => setPreview(pv => pv.map(r => r.kind === 'duplicate' ? Object.assign({}, r, { action: 'skip' }) : r))}>Skip</button></div>` : null}
+        ${preview.map((r, i) => {
+          const merged = r.action === 'merge' && r.match ? K.mergeLead(r.match, r.lead, r.replaceSales) : null;
+          const diff = merged ? K.diffLead(r.match, merged) : [];
+          return html`<div class="prow" key=${r.index}>
+            <div class="prow-head">
+              <b>Row ${r.index + 1}</b><span class=${'chip kind-' + r.kind}>${KIND_LABEL[r.kind]}</span>
+              <span style=${{ minWidth: 0, overflowWrap: 'anywhere' }}>${r.lead.company} · ${r.lead.branch_project} · ${r.lead.city}</span>
+              <span class="num muted">${K.scoreTotal(r.lead.score)}/10</span>
+              <select aria-label=${'Action for row ' + (r.index + 1)} value=${r.action} onChange=${e => setRow(i, { action: e.target.value })} style=${{ marginLeft: 'auto' }}>
+                ${ACTIONS[r.kind].map(([v, l]) => html`<option key=${v} value=${v}>${l}</option>`)}</select>
+            </div>
+            ${r.reason ? html`<div class="muted">${r.reason}${r.match ? html` Saved lead: <b>${r.match.company}</b> · ${r.match.branch_project} · status ${r.match.status}.` : null}</div>` : null}
+            ${r.warnings.length ? html`<ul class="warnlist muted">${r.warnings.map((w, j) => html`<li key=${j}>${w}</li>`)}</ul>` : null}
+            ${merged ? html`<div class="diff">
+              ${diff.length ? diff.map(d => html`<div key=${d.field}><span class="mono">${d.field}</span>: ${d.from} → <b>${d.to}</b></div>`) : html`<div>No research changes.</div>`}
+              <div class="muted">Kept: id, owner, status, notes, follow-up date and Studio reference${r.replaceSales ? ' — except you chose to replace them from the backup' : ''}.</div>
+              ${parsed.kind === 'backup' ? html`<label class="check"><input type="checkbox" checked=${!!r.replaceSales} onChange=${e => setRow(i, { replaceSales: e.target.checked })} />Replace sales fields with the backup's values</label>` : null}
+            </div>` : null}
+          </div>`;
+        })}
+      </section>` : null}
+
+      ${invalid.length && preview.length ? html`<label class="check"><input type="checkbox" checked=${ackInvalid} onChange=${e => setAckInvalid(e.target.checked)} />Import only the reviewed rows. ${invalid.length} invalid row(s) stay out.</label>` : null}
+      ${!canWrite ? html`<div class="err">Your saved leads have not loaded, so importing is paused to avoid overwriting them.</div>` : null}
+      <div class="remind"><b>Before approving:</b> open each source link and confirm the dates, location and signal. Remove anything unsupported in the research chat and re-import.</div>
+      <div class="footer-actions">
+        <button onClick=${onClose}>Cancel</button>
+        <button class="primary" disabled=${blocked} onClick=${() => onApply(parsed.kind, preview)}>Import ${writes} lead(s)</button>
+      </div>
+    `}
+  </aside>`;
+}
+
+// ---------- fallback when downloads are unavailable ----------
+function Fallback({ file, onClose, toast }) {
+  return html`<div class="shade" onClick=${onClose}></div>
+  <aside class="sheet" role="dialog" aria-modal="true" aria-label="Copy export">
+    <div class="sheet-head"><div><h2>Copy ${file.filename}</h2><div class="muted">${file.note || html`Downloads are not available in this view. Copy the text below and save it as <span class="mono">${file.filename}</span>.`}</div></div>
+      <button class="ghost" onClick=${onClose}>Close</button></div>
+    <textarea id="fallback-text" rows="18" class="mono" readOnly value=${file.data} onFocus=${e => e.target.select()}></textarea>
+    <div class="footer-actions"><button class="primary" onClick=${() => copyText(file.data, toast)}>Copy</button></div>
+  </aside>`;
+}
+
+// ---------- app ----------
+const EMPTY_F = { q: '', segment: '', city: '', service: '', minScore: '', status: '', due: false };
+
+function App() {
+  const [leads, setLeads] = useState([]);
+  const [st, setSt] = useState({ mode: 'connecting', status: 'loading', error: '' });
+  const [f, setF] = useState(EMPTY_F);
+  const [sel, setSel] = useState(null);
+  const [picked, setPicked] = useState([]);
+  const [confirmBulk, setConfirmBulk] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [fallback, setFallback] = useState(null);
+  const [toastMsg, setToastMsg] = useState('');
+  const store = useMemo(() => createStore(setSt), []);
+  const leadsRef = useRef(leads); leadsRef.current = leads;
+  const today = K.todayInKolkata();
+
+  const toast = useCallback((m) => { setToastMsg(m); clearTimeout(toast.t); toast.t = setTimeout(() => setToastMsg(''), 3200); }, []);
+
+  const load = useCallback(async () => { const l = await store.connect(); if (l) setLeads(l); }, [store]);
+  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') { setSel(null); setImporting(false); setFallback(null); } };
+    addEventListener('keydown', onKey); return () => removeEventListener('keydown', onKey);
+  }, []);
+
+  const canWrite = st.mode === 'personal' || st.mode === 'memory';
+  const copyPrompt = async () => {
+    const text = researchPrompt(leadsRef.current, today);
+    try { await navigator.clipboard.writeText(text); toast('Research prompt copied. Paste it into a new chat in the Kirat Project.'); }
+    catch (e) { setFallback({ filename: 'research prompt', data: text, note: 'Copy this prompt and paste it into a new chat in your Kirat — Lead Finder Project.' }); }
+  };
+
+  const editLead = (id, patch) => {
+    const current = leadsRef.current.find(l => l.id === id);
+    if (!current) return;
+    const updated = Object.assign({}, current, patch);
+    leadsRef.current = leadsRef.current.map(l => l.id === id ? updated : l);
+    setLeads(leadsRef.current); store.save(updated);
+  };
+  const deleteMany = (ids) => {
+    ids.forEach(id => store.remove(id));
+    setLeads(ls => ls.filter(l => ids.indexOf(l.id) < 0)); setPicked([]); setConfirmBulk(false);
+    toast(ids.length + ' lead(s) deleted');
+  };
+  const deleteLead = (id) => {
+    setLeads(ls => ls.filter(l => l.id !== id)); store.remove(id); setSel(null); toast('Lead deleted');
+  };
+  const applyImport = (kind, preview) => {
+    const res = K.applyImport(leadsRef.current, preview, kind, newId);
+    setLeads(res.leads); res.changed.forEach(l => store.save(l));
+    const c = a => preview.filter(p => p.action === a).length;
+    setImporting(false);
+    toast(`Imported ${c('add') + c('separate')}, merged ${c('merge')}, skipped ${c('skip')}`);
+  };
+
+  const offer = (filename, data) => {
+    try {
+      const type = filename.endsWith('.csv') ? 'text/csv;charset=utf-8' : 'application/json';
+      const url = URL.createObjectURL(new Blob([data], { type }));
+      const anchor = document.createElement('a');
+      anchor.href = url; anchor.download = filename;
+      document.body.appendChild(anchor); anchor.click(); anchor.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+      toast('Download started: ' + filename);
+    } catch (e) { setFallback({ filename, data }); }
+  };
+  const exportBackup = () => offer('kirat-leads-backup-' + today + '.json', K.backupJson(leadsRef.current));
+  const shown = useMemo(() => K.filterLeads(leads, f, today).sort((a, b) =>
+    (b.researched_on || '').localeCompare(a.researched_on || '') || K.scoreTotal(b.score) - K.scoreTotal(a.score)), [leads, f, today]);
+  const exportCsv = () => offer('kirat-leads-' + today + '.csv', K.toCsv(shown));
+
+  const sum = K.summarize(leads, today);
+  const cities = useMemo(() => [...new Set(leads.map(l => l.city))].sort(), [leads]);
+  const filtered = JSON.stringify(f) !== JSON.stringify(EMPTY_F);
+  const upd = (k) => (e) => setF(x => Object.assign({}, x, { [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value }));
+  const selected = leads.find(l => l.id === sel);
+  const pickedIds = picked.filter(id => leads.some(l => l.id === id));
+  const allShownPicked = shown.length > 0 && shown.every(l => pickedIds.indexOf(l.id) >= 0);
+  const togglePick = (id) => { setConfirmBulk(false); setPicked(p => p.indexOf(id) >= 0 ? p.filter(x => x !== id) : p.concat(id)); };
+  const toggleAllShown = () => { setConfirmBulk(false); setPicked(allShownPicked ? pickedIds.filter(id => !shown.some(l => l.id === id)) : [...new Set(pickedIds.concat(shown.map(l => l.id)))]); };
+
+  return html`<div class="wrap">
+    <header class="top">
+      <div class="brand"><span class="plate" aria-hidden="true">KIRAT</span><div><h1>Kirat Lead Desk</h1><small>Signage, graphics & display leads · India and Delhi NCR</small></div></div>
+      <div class="actions">
+        <${SaveBadge} st=${st} onClick=${st.status === 'error' ? load : exportBackup} />
+        <button class="primary" onClick=${() => setImporting(true)} disabled=${!canWrite}>Import batch</button>
+        <button onClick=${exportBackup} disabled=${!canWrite}>Export backup</button>
+        <button onClick=${exportCsv} disabled=${!shown.length}>Export CSV (${shown.length})</button>
+        <button onClick=${copyPrompt}>Copy research prompt</button>
+        <a class="btn" href=${PROJECT_URL} target="_blank" rel="noopener noreferrer">Open research Project ↗</a>
+        <a class="btn" href=${STUDIO_URL} target="_blank" rel="noopener noreferrer">Open Signage Studio ↗</a>
+      </div>
+    </header>
+
+    <div class="notice"><span>Research runs on your Mac. Import a reviewed JSON batch here. Leads save in this browser only; export backups regularly.</span><span>Today in India: <b class="num">${K.formatDate(today)}</b></span></div>
+
+    ${st.mode === 'load_error' ? html`<div class="banner" role="alert"><strong>Your saved leads did not load.</strong><span>${st.error}</span>
+      <button onClick=${load}>Try again</button><button class="ghost" onClick=${() => store.useMemory()}>Work without saving</button></div>` : null}
+    ${st.mode === 'memory' ? html`<div class="banner" role="status"><strong>Unsaved — download backup</strong><span>${st.error} Changes last only until this page closes. Export a backup before leaving.</span>
+      <button onClick=${exportBackup}>Export backup</button></div>` : null}
+    ${st.mode === 'personal' && st.status === 'unsaved' ? html`<div class="banner" role="alert"><strong>Unsaved — download backup</strong><span>${st.error}</span>
+      <button onClick=${() => store.retry()}>Retry save</button><button onClick=${exportBackup}>Export backup</button></div>` : null}
+
+    <div class="summary">
+      <div class="tile"><div class="k">Total leads</div><div class="v">${sum.total}</div></div>
+      <button class="tile" onClick=${() => setF(Object.assign({}, EMPTY_F, { status: 'New' }))}><div class="k">New</div><div class="v">${sum.fresh}</div></button>
+      <button class="tile" onClick=${() => setF(Object.assign({}, EMPTY_F, { status: 'Qualified' }))}><div class="k">Qualified</div><div class="v">${sum.qualified}</div></button>
+      <button class=${'tile' + (sum.due ? ' hot' : '') + (f.due ? ' on' : '')} onClick=${() => setF(x => Object.assign({}, x, { due: !x.due }))} aria-pressed=${f.due}><div class="k">Follow-ups due</div><div class="v">${sum.due}</div></button>
+    </div>
+
+    ${leads.length ? html`
+    <div class="filters">
+      <label class="field grow">Search<input id="q" type="search" value=${f.q} onChange=${upd('q')} placeholder="Company, branch, notes…" /></label>
+      <label class="field">Segment<select id="seg" value=${f.segment} onChange=${upd('segment')}><option value="">All</option>${K.SEGMENTS.map(s => html`<option key=${s} value=${s}>${SEGMENT_LABEL[s]}</option>`)}</select></label>
+      <label class="field">City<select id="city" value=${f.city} onChange=${upd('city')}><option value="">All</option>${cities.map(c => html`<option key=${c}>${c}</option>`)}</select></label>
+      <label class="field">Service<select id="svc" value=${f.service} onChange=${upd('service')}><option value="">All</option>${K.SERVICES.map(s => html`<option key=${s}>${s}</option>`)}</select></label>
+      <label class="field">Min score<select id="min" value=${f.minScore} onChange=${upd('minScore')}><option value="">Any</option>${[2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => html`<option key=${n} value=${n}>${n}+</option>`)}</select></label>
+      <label class="field">Status<select id="status" value=${f.status} onChange=${upd('status')}><option value="">All</option>${K.STATUSES.map(s => html`<option key=${s}>${s}</option>`)}</select></label>
+      <label class="check" style=${{ alignSelf: 'center' }}><input id="due" type="checkbox" checked=${f.due} onChange=${upd('due')} />Due only</label>
+      <button onClick=${() => setF(EMPTY_F)} disabled=${!filtered}>Clear filters</button>
+      <span class="count num">Showing ${shown.length} of ${leads.length}</span>
+    </div>
+
+    ${pickedIds.length ? html`<div class="bulkbar" role="region" aria-label="Selected leads">
+      <b class="num">${pickedIds.length} selected</b>
+      ${confirmBulk
+        ? html`<span>Delete ${pickedIds.length} lead(s) for good? Export a backup first if unsure.</span>
+            <button class="danger" onClick=${() => deleteMany(pickedIds)}>Delete ${pickedIds.length}</button><button onClick=${() => setConfirmBulk(false)}>Keep</button>`
+        : html`<button class="danger" onClick=${() => setConfirmBulk(true)}>Delete selected…</button>`}
+      <button class="ghost" onClick=${() => { setPicked([]); setConfirmBulk(false); }}>Clear selection</button>
+    </div>` : null}
+
+    ${shown.length ? html`<div class="tablebox"><table>
+      <thead><tr><th class="pick"><input type="checkbox" aria-label="Select all shown leads" checked=${allShownPicked} onChange=${toggleAllShown} /></th><th>Company</th><th>Branch / project</th><th>Location</th><th>Opportunity (inferred)</th><th>Score</th><th>Confidence</th><th>Researched</th><th>Status</th><th>Follow-up</th></tr></thead>
+      <tbody>${shown.map(l => {
+        const due = K.isFollowUpDue(l, today), total = K.scoreTotal(l.score), age = K.daysBetween(l.researched_on, today);
+        return html`<tr key=${l.id} onClick=${() => setSel(l.id)} class=${pickedIds.indexOf(l.id) >= 0 ? 'picked' : ''}>
+          <td class="pick" onClick=${e => e.stopPropagation()}><input type="checkbox" aria-label=${'Select ' + l.company} checked=${pickedIds.indexOf(l.id) >= 0} onChange=${() => togglePick(l.id)} /></td>
+          <td class="wide"><button class="linkish co" onClick=${e => { e.stopPropagation(); setSel(l.id); }}>${l.company}</button><div class="muted" style=${{ fontSize: '12.5px' }}>${SEGMENT_LABEL[l.segment]}</div></td>
+          <td class="wide" data-l="Branch / project">${l.branch_project}</td>
+          <td data-l="Location">${l.city}${l.state ? html`<div class="muted" style=${{ fontSize: '12.5px' }}>${l.state}</div>` : null}</td>
+          <td class="wide" data-l="Opportunity (inferred)"><div class="opp">${l.opportunity}</div></td>
+          <td data-l="Score" class="num" style=${{ whiteSpace: 'nowrap' }}><${Meter} total=${total} />${total}</td>
+          <td data-l="Confidence">${l.confidence}</td>
+          <td data-l="Researched" class="num" style=${{ whiteSpace: 'nowrap' }}>${K.formatDate(l.researched_on)}<div class=${age > K.STALE_DAYS ? 'flag' : 'muted'} style=${{ fontSize: '12px' }}>${age}d ago${age > K.STALE_DAYS ? ' · old' : ''}</div></td>
+          <td data-l="Status"><span class=${'chip st-' + l.status}>${l.status}</span></td>
+          <td data-l="Follow-up" class="num" style=${{ whiteSpace: 'nowrap' }}>${l.follow_up_date ? K.formatDate(l.follow_up_date) : '—'}${due ? html`<div class="flag bad">Due</div>` : null}</td>
+        </tr>`;
+      })}</tbody></table></div>`
+    : html`<div class="empty"><h2>No leads match these filters</h2><p>${leads.length} lead(s) are hidden by the current filters.</p><div><button onClick=${() => setF(EMPTY_F)}>Clear filters</button></div></div>`}
+    ` : st.status === 'loading' ? html`<div class="empty"><h2>Opening your private register…</h2><p>Import stays off until your saved leads have loaded, so nothing can overwrite them.</p></div>`
+    : html`<div class="empty">
+      <h2>No leads yet</h2>
+      <p>This register starts empty and only holds leads you import. It never finds leads on its own and never contacts anyone.</p>
+      <ol>
+        <li>Check your Claude usage screen.</li>
+        <li>Choose <b>Copy research prompt</b> (it lists every lead you already have), open the research Project and paste it into a new chat. Or run the local tool to prepare a research prompt, then import the resulting JSON file.</li>
+        <li>Open each source link in the shortlist and confirm the facts.</li>
+        <li>Choose <b>Import batch</b>, paste the JSON, review the rows, then confirm.</li>
+        <li>Choose <b>Export backup</b>. Tomorrow's research uses that file to skip known leads.</li>
+      </ol>
+      <div><button class="primary" onClick=${() => setImporting(true)} disabled=${!canWrite}>Import batch</button></div>
+    </div>`}
+
+    ${selected ? html`<${Detail} lead=${selected} today=${today} onChange=${editLead} onDelete=${deleteLead} onClose=${() => setSel(null)} toast=${toast} />` : null}
+    ${importing ? html`<${Import} leads=${leads} canWrite=${canWrite} initialText=${importing.text} onApply=${applyImport} onClose=${() => setImporting(false)} />` : null}
+    ${fallback ? html`<${Fallback} file=${fallback} onClose=${() => setFallback(null)} toast=${toast} />` : null}
+    ${toastMsg ? html`<div class="toast" role="status">${toastMsg}</div>` : null}
+  </div>`;
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(html`<${App} />`);
+})();
+</script>
