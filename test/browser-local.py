@@ -17,6 +17,21 @@ try:
         page.get_by_role('button',name='Review 1 researched lead(s)',exact=True).click()
         page.get_by_role('button',name='Import 1 lead(s)',exact=True).click()
         page.get_by_role('button',name='=1+1 Fictional Chai',exact=True).wait_for()
+        page.get_by_role('button',name='=1+1 Fictional Chai',exact=True).click()
+        page.locator('#f-notes').fill('Preserve contact lookup sales notes')
+        page.get_by_role('button',name='Find contacts',exact=True).click()
+        page.get_by_role('button',name='Add selected contacts',exact=True).click()
+        page.get_by_text('Contacts added',exact=True).wait_for()
+        assert page.locator('#f-notes').input_value()=='Preserve contact lookup sales notes'
+        assert '2/2' in page.locator('.bar').filter(has_text='Contactability').inner_text()
+        page.get_by_role('button',name='Close details',exact=True).click()
+        page.reload()
+        page.get_by_role('button',name='=1+1 Fictional Chai',exact=True).click()
+        assert page.locator('#f-notes').input_value()=='Preserve contact lookup sales notes'
+        assert '2/2' in page.locator('.bar').filter(has_text='Contactability').inner_text()
+        assert page.locator('aside').get_by_text('Asha Test',exact=True).count()>=1
+        page.get_by_role('button',name='Close details',exact=True).click()
+
         page.get_by_label('Research city').select_option('Noida, India')
         page.get_by_role('button',name='Find candidates only',exact=True).click()
         page.get_by_role('button',name='Stop',exact=True).click()

@@ -179,6 +179,17 @@
           errors.push(n + ': "verified" needs a verification_evidence explanation.');
         out.verification_evidence = str(c.verification_evidence);
       }
+      ['checked_on', 'scope', 'person_name', 'source_excerpt', 'email_status'].forEach(function (k) {
+        if (c[k] == null) return;
+        if (typeof c[k] !== 'string') errors.push(n + ': ' + k + ' must be text.');
+        else out[k] = c[k].trim();
+      });
+      if (c.role != null && c.type !== 'person') out.role = str(c.role);
+      if (out.checked_on && !isISODate(out.checked_on)) errors.push(n + ': checked_on must be an ISO date.');
+      if (out.scope && ['direct', 'company', 'unknown'].indexOf(out.scope) < 0) errors.push(n + ': invalid contact scope.');
+      if (out.email_status && ['published_only', 'verified', 'risky', 'guess', 'invalid'].indexOf(out.email_status) < 0) errors.push(n + ': invalid email status.');
+      if (out.email_status === 'verified' && ver !== 'verified') errors.push(n + ': verified email status needs verification evidence.');
+      if (out.scope === 'direct' && (!out.person_name || !out.role || !out.source_excerpt)) errors.push(n + ': direct contact needs person_name, role and source_excerpt.');
       lead.contacts.push(out);
     });
 
@@ -277,6 +288,8 @@
   }
   var evidenceKey = function (e) { return e.url.trim().replace(/\/+$/, '').toLowerCase(); };
   var contactKey = function (c) { return c.type + ':' + c.value.trim().toLowerCase(); };
+
+  function mergeContactList(existing, incoming) { return unionBy(existing || [], incoming || [], contactKey); }
 
   // Merge incoming research into an existing lead. Sales fields kept unless replaceSales.
   function mergeLead(existing, incoming, replaceSales) {
@@ -391,6 +404,7 @@
     ['Contactability', function (l) { return l.score.contactability; }],
     ['Score /10', function (l) { return scoreTotal(l.score); }],
     ['Confidence', function (l) { return l.confidence; }],
+    ['Contact evidence', function (l) { return JSON.stringify(l.contacts || []); }],
     ['Next action', function (l) { return l.next_action; }],
     ['Owner', function (l) { return l.owner; }],
     ['Status', function (l) { return l.status; }],
@@ -413,7 +427,7 @@
     todayInKolkata: todayInKolkata, formatDate: formatDate, daysBetween: daysBetween,
     scoreTotal: scoreTotal, isFollowUpDue: isFollowUpDue, isStale: isStale,
     validateLead: validateLead, parseEnvelope: parseEnvelope,
-    dupKey: dupKey, classify: classify, mergeLead: mergeLead, diffLead: diffLead, applyImport: applyImport,
+    mergeContactList: mergeContactList, dupKey: dupKey, classify: classify, mergeLead: mergeLead, diffLead: diffLead, applyImport: applyImport,
     filterLeads: filterLeads, summarize: summarize, pickLead: pickLead, backupJson: backupJson,
     csvCell: csvCell, toCsv: toCsv
   };

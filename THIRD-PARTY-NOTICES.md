@@ -25,3 +25,5 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 The dashboard bundles React 18.3.1, React DOM (MIT) and htm 3.1.1 (Apache-2.0). Full license texts are included under assets/vendor. The company logo is supplied by Kirat Creations.
+
+Optional local PDF source reading uses pypdf (BSD-3-Clause), installed into the ignored Python environment from PyPI; it is not bundled in the Pages application.

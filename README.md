@@ -57,6 +57,16 @@ node bin/kirat.js candidates /path/to/harvey-export.csv
 
 The first exports discovered companies from the local Harvey database. The second converts contact CSV into an unqualified candidate file, preserving email risk labels. It does not mark addresses verified.
 
+## Find people and business contacts
+
+Open a saved lead and choose **Find contacts** under **People and public contacts**. The local job uses pinned Harvey Scout public company/contact/team pages plus restricted Codex public web research. It looks for projects, fit-out, expansion, regional, procurement or marketing staff and any published work channels.
+
+Review the proposed contacts and their supporting passages, then choose **Add selected contacts**. Contacts are added without replacing existing contacts or sales notes/status. The contactability part of the score updates from the accepted people and business channels. Duplicate values are skipped. You can use Copy, Email or Call manually after adding an appropriate channel; nothing is sent automatically.
+
+A named person, a direct work address, and a company inbox/switchboard are distinct records. Every new result has a checked date and source. The checker opens HTML or text-based PDF sources, rejects missing details and unsupported direct associations, and does not treat search snippets as proof. Scanned PDFs and inaccessible profiles may produce no result. **Published only does not mean email deliverability is verified.** No email patterns, SMTP probes, paid services, logged-in social scraping or private phone lookups are enabled. Optional paid verification is deferred.
+
+The Mac app can find contacts; Pages can display/export already saved contacts but cannot run local jobs. Additional PDF-reading dependency is installed by Repair setup. Existing installations can use Repair setup if a PDF source cannot be read.
+
 ## Storage and costs
 
 - Lead batches, exports, credentials, Harvey checkout and database stay out of Git.

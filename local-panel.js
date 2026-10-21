@@ -2,14 +2,14 @@
 (function () {
   'use strict';
   const html=htm.bind(React.createElement);
-  window.KiratLocalPanel=function({getRegister,onReview}) {
-    const [state,setState]=React.useState(null),[error,setError]=React.useState(''),[city,setCity]=React.useState('New Delhi, India');
-    const [stopped,setStopped]=React.useState(false);
-    const cities=['New Delhi, India','Noida, India','Gurugram, India','Faridabad, India','Ghaziabad, India','Greater Noida, India'];
     async function api(route,body) {
       const response=await fetch('/api/'+route,body?{method:'POST',headers:{'Content-Type':'application/json','X-Kirat-Local':'1'},body:JSON.stringify(body)}:{});
       const data=await response.json();if(!response.ok)throw new Error(data.error||'Local service request failed');return data;
     }
+  window.KiratLocalPanel=function({getRegister,onReview}) {
+    const [state,setState]=React.useState(null),[error,setError]=React.useState(''),[city,setCity]=React.useState('New Delhi, India');
+    const [stopped,setStopped]=React.useState(false);
+    const cities=['New Delhi, India','Noida, India','Gurugram, India','Faridabad, India','Ghaziabad, India','Greater Noida, India'];
     React.useEffect(()=>{
       let live=true;
       const load=()=>api('status').then(s=>{if(live){setState(s);setError('');}}).catch(e=>{if(live)setError(e.message);});
@@ -38,5 +38,41 @@
         <details><summary>Job details</summary><pre style=${{whiteSpace:'pre-wrap',maxHeight:'240px',overflow:'auto'}}>${job.log||'Starting…'}</pre></details>`:null}
       ${error?html`<p role="alert" class="err">${error}. If the service was closed, reopen the Mac app.</p>`:null}`}
     </section>`;
+  };
+  window.KiratContactPanel=function({lead,onApply}) {
+    const [state,setState]=React.useState(null),[error,setError]=React.useState(''),[picked,setPicked]=React.useState([]),[applied,setApplied]=React.useState(false);
+    const seen=React.useRef('');
+    React.useEffect(()=>{
+      let live=true;
+      const load=()=>api('status').then(s=>{if(live)setState(s);}).catch(e=>{if(live)setError(e.message);});
+      load();const timer=setInterval(load,2000);return()=>{live=false;clearInterval(timer);};
+    },[lead.id]);
+    const job=state&&state.job,busy=job&&job.status==='running';
+    const active=job&&job.kind==='contacts'&&job.target_id===lead.id;
+    const result=active&&job.contact_result?job.contact_result:state&&state.lastContact&&state.lastContact.target_id===lead.id?state.lastContact:null;
+    const match=result&&result.target_key===window.KiratCore.dupKey(lead);
+    React.useEffect(()=>{
+      const key=result?result.target_id+':'+result.checked_on+':'+JSON.stringify(result.contacts):'';
+      if(key!==seen.current){seen.current=key;setPicked(result?result.contacts.map((_,i)=>i):[]);setApplied(false);}
+    },[result]);
+    async function start(){try{setError('');setApplied(false);const d=await api('job',{kind:'contacts',lead});setState(s=>({...s,job:d.job}));}catch(e){setError(e.message);}}
+    return html`<div class="box" aria-label="Find contacts">
+      <div class="actions"><button class="primary" disabled=${busy||!state||!state.ready} onClick=${start}>Find contacts</button>
+      ${busy&&active?html`<button onClick=${async()=>{try{const d=await api('stop',{});setState(s=>({...s,job:d.job}));}catch(e){setError(e.message);}}}>Stop contact lookup</button>`:null}</div>
+      <p class="muted">Public work contacts only. Business inboxes and switchboards stay separate from named people. No email guessing or paid services.</p>
+      ${active?html`<p role="status">${job.status==='running'?'Finding and checking public contacts…':job.message}</p><details><summary>Contact lookup details</summary><pre style=${{whiteSpace:'pre-wrap',maxHeight:'180px',overflow:'auto'}}>${job.log}</pre></details>`:null}
+      ${match&&!busy?html`<h4>Review found contacts</h4><p>${result.note||'Check each source before adding these contacts.'}</p>
+        ${result.contacts.length?result.contacts.map((c,i)=>html`<div class="contact" key=${i}>
+          <label class="check"><input type="checkbox" checked=${picked.includes(i)} onChange=${e=>setPicked(p=>e.target.checked?p.concat(i):p.filter(x=>x!==i))} /><b>${c.value}</b></label>
+          <div>${c.type==='person'?c.role:c.scope==='direct'?'Direct work contact for '+c.person_name+' · '+c.role:c.scope==='company'?'General company channel':'Contact owner not established'}</div>
+          <div class="muted">Published only · checked ${c.checked_on}${c.type==='email'?' · email delivery not verified':''}</div>
+          <a href=${c.source_url} target="_blank" rel="noopener noreferrer">Open supporting source ↗</a>
+          <details><summary>Supporting passage</summary><p>${c.source_excerpt}</p></details>
+        </div>`):html`<p>No usable public contact was found. Existing contacts are unchanged.</p>`}
+        ${result.contacts.length?html`<button class="primary" disabled=${!picked.length||applied} onClick=${()=>{onApply(result.contacts.filter((_,i)=>picked.includes(i)));setApplied(true);}}>${applied?'Contacts added':'Add selected contacts'}</button>`:null}
+      `:null}
+      ${match&&result.rejected&&result.rejected.length?html`<details><summary>Excluded contacts</summary><ul>${result.rejected.map((r,i)=>html`<li key=${i}>${r.type}: ${r.value} · ${r.reason}</li>`)}</ul></details>`:null}
+      ${error?html`<p class="err" role="alert">${error}</p>`:null}
+    </div>`;
   };
 })();

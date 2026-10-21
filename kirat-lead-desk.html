@@ -280,12 +280,18 @@ function Detail({ lead, today, onChange, onDelete, onClose, toast }) {
 
     <section class="box">
       <h3>People and public contacts</h3>
+      ${window.KiratContactPanel ? html`<${window.KiratContactPanel} key=${lead.id} lead=${lead} onApply=${contacts => { const merged = K.mergeContactList(lead.contacts, contacts); const people = merged.some(c => c.type === 'person'); const channel = merged.some(c => ['email','phone','contact_page'].includes(c.type) && !['risky','guess','invalid'].includes(c.email_status)); onChange(lead.id, { contacts: merged, score: Object.assign({}, lead.score, { contactability: Number(people) + Number(channel) }) }); toast('Selected public contacts added.'); }} />` : null}
       ${lead.contacts.length ? lead.contacts.map((c, i) => html`
         <div class="contact" key=${i}>
-          <div><span class="chip">${c.type.replace('_', ' ')}</span> <span class=${c.verification === 'verified' ? '' : 'flag'}>${c.verification === 'verified' ? 'Verified' : c.type === 'person' ? 'Named in a public source — role may have changed' : 'Published only — deliverability not verified'}</span></div>
+          <div><span class="chip">${c.type.replace('_', ' ')}</span> <span class=${c.verification === 'verified' ? '' : 'flag'}>${c.email_status && ['risky','guess','invalid'].includes(c.email_status) ? 'Email status: '+c.email_status+' — not verified' : c.verification === 'verified' ? 'Verified' : c.type === 'person' ? 'Named in a public source — role may have changed' : 'Published only — deliverability not verified'}</span></div>
           ${c.type === 'person' ? html`<div style=${{ display: 'flex', gap: '8px 12px', alignItems: 'baseline', flexWrap: 'wrap' }}><b>${c.value}</b><span class="muted">${c.role}</span>
               <a href=${'https://www.linkedin.com/search/results/people/?keywords=' + encodeURIComponent(c.value + ' ' + lead.company)} target="_blank" rel="noopener noreferrer">Find on LinkedIn ↗</a></div>`
-          : c.type === 'contact_page' ? html`<${SafeLink} href=${c.value} />` : html`<div style=${{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}><span class="val">${c.value}</span><button class="linkish" onClick=${() => copyText(c.value, toast)}>Copy</button></div>`}
+          : c.type === 'contact_page' ? html`<${SafeLink} href=${c.value} />` : html`<div style=${{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}><span class="val">${c.value}</span><button class="linkish" onClick=${() => copyText(c.value, toast)}>Copy</button>
+            ${c.type === 'email' && !['risky','guess','invalid'].includes(c.email_status) ? html`<a href=${'mailto:'+encodeURIComponent(c.value)}>Email</a>` : null}
+            ${c.type === 'phone' && c.value.replace(/\D/g,'').length >= 7 ? html`<a href=${'tel:'+c.value.replace(/[^+\d]/g,'')}>Call</a>` : null}</div>`}
+          ${c.scope ? html`<div class="muted">${c.scope === 'direct' ? 'Direct work contact for '+c.person_name+' · '+c.role : c.scope === 'company' ? 'General company channel' : 'Contact owner not established'}</div>` : null}
+          ${c.checked_on ? html`<div class="muted">Source checked: ${K.formatDate(c.checked_on)}</div>` : null}
+          ${c.source_excerpt ? html`<details><summary>Supporting passage</summary><p>${c.source_excerpt}</p></details>` : null}
           ${c.verification_evidence ? html`<div class="muted">Verification: ${c.verification_evidence}</div>` : null}
           <div class="muted">Source: <${SafeLink} href=${c.source_url} /></div>
         </div>`) : html`<p class="muted">No public contact found. Look for the ${lead.buyer_role || 'projects or procurement team'}.</p>`}
