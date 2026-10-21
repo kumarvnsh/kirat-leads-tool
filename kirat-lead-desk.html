@@ -287,7 +287,7 @@ function Detail({ lead, today, onChange, onDelete, onClose, toast }) {
           ${c.type === 'person' ? html`<div style=${{ display: 'flex', gap: '8px 12px', alignItems: 'baseline', flexWrap: 'wrap' }}><b>${c.value}</b><span class="muted">${c.role}</span>
               <a href=${'https://www.linkedin.com/search/results/people/?keywords=' + encodeURIComponent(c.value + ' ' + lead.company)} target="_blank" rel="noopener noreferrer">Find on LinkedIn ↗</a></div>`
           : c.type === 'contact_page' ? html`<${SafeLink} href=${c.value} />` : html`<div style=${{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}><span class="val">${c.value}</span><button class="linkish" onClick=${() => copyText(c.value, toast)}>Copy</button>
-            ${c.type === 'email' && !['risky','guess','invalid'].includes(c.email_status) ? html`<a href=${'mailto:'+encodeURIComponent(c.value)}>Email</a>` : null}
+            ${c.type === 'email' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.value) && !['risky','guess','invalid'].includes(c.email_status) ? html`<a href=${'mailto:'+encodeURIComponent(c.value)}>Email</a>` : null}
             ${c.type === 'phone' && c.value.replace(/\D/g,'').length >= 7 ? html`<a href=${'tel:'+c.value.replace(/[^+\d]/g,'')}>Call</a>` : null}</div>`}
           ${c.scope ? html`<div class="muted">${c.scope === 'direct' ? 'Direct work contact for '+c.person_name+' · '+c.role : c.scope === 'company' ? 'General company channel' : 'Contact owner not established'}</div>` : null}
           ${c.checked_on ? html`<div class="muted">Source checked: ${K.formatDate(c.checked_on)}</div>` : null}
