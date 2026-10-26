@@ -34,6 +34,16 @@ function serve(port = 4173) {
 try {
   const [command='help',...args] = process.argv.slice(2);
   if (command === 'app') require('../lib/local-server').start();
+  else if (['daily','daily-status','daily-seed'].includes(command)) {
+    const mail=require('../lib/mail').createMail({poll:false,startup:false});
+    const daily=require('../lib/daily').createDaily({mail});
+    Promise.resolve().then(async()=>{
+      let result;if(command==='daily-status')result=daily.status();
+      else if(command==='daily-seed')result=daily.sync({register:fs.readFileSync(file(args[0]),'utf8')});
+      else {const stateFile=path.join(root,'.local/daily/state.json');if(!fs.existsSync(stateFile)||!JSON.parse(fs.readFileSync(stateFile,'utf8')).register?.length)throw new Error('Seed the daily register first: node bin/kirat.js daily-seed <native-register-export.json>');result=await daily.run({retry:args.includes('--retry'),manual:args.includes('--manual')});}
+      const state=result.status||result;console.log(JSON.stringify({enabled:state.enabled,run:state.run,cards:state.cards?.length||0,queued:state.cards?.filter(c=>c.status==='queued').length||0,held:state.cards?.filter(c=>!['queued','ready'].includes(c.status)).length||0},null,2));if(state.run?.status==='failed')process.exitCode=1;
+    }).catch(e=>{console.error(e.message);process.exitCode=1;}).finally(()=>{daily.stop();mail.stop();});
+  }
   else if (command === 'serve') serve(args[0] ? Number(args[0]):4173);
   else if (command === 'doctor') doctor();
   else if (command === 'validate') {
@@ -54,6 +64,6 @@ try {
   } else if (command === 'harvey-setup') require('../lib/harvey').setup(args[0]);
   else if (command === 'discover') require('../lib/harvey').discover(args[0],args[1]?Number(args[1]):5);
   else if (command === 'harvey-export') require('../lib/harvey').discover('',args[0]?Number(args[0]):25,true);
-  else if (command === 'help') console.log(`Kirat Lead Tool\n  serve [port]                           Open local dashboard\n  doctor                                 Check runtimes and CLI login status\n  harvey-setup [python-command]           Install pinned Harvey; disable outreach\n  discover [city] [limit:1-25]            Free OSM discovery + website profiling\n  harvey-export [limit:1-25]              Read existing Harvey company candidates\n  candidates input.csv [output.json]     Convert Harvey CSV without qualification\n  prompt register.json|- [candidates.json] [output.txt]\n  validate batch.json                    Reject malformed research output\n\nNo command sends messages. Research requires source checks in a web-enabled session.`);
+  else if (command === 'help') console.log(`Kirat Lead Tool\n  serve [port]                           Open local dashboard\n  daily [--retry] [--manual]              Prepare today’s review cards (never sends)\n  daily-status                           Show daily preparation status\n  daily-seed register.json                Seed daily exclusions from native backup\n  doctor                                 Check runtimes and CLI login status\n  harvey-setup [python-command]           Install pinned Harvey; disable outreach\n  discover [city] [limit:1-25]            Free OSM discovery + website profiling\n  harvey-export [limit:1-25]              Read existing Harvey company candidates\n  candidates input.csv [output.json]     Convert Harvey CSV without qualification\n  prompt register.json|- [candidates.json] [output.txt]\n  validate batch.json                    Reject malformed research output\n\nNo command sends messages. Research requires source checks in a web-enabled session.`);
   else throw new Error('Unknown command: '+command);
 } catch (e) { console.error(e.message);process.exitCode=1; }

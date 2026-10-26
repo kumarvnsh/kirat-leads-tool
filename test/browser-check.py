@@ -15,7 +15,7 @@ with sync_playwright() as p:
     page=context.new_page()
     errors=[]
     page.on('pageerror',lambda e:errors.append(str(e)))
-    page.goto(base_url)
+    page.goto(base_url);page.get_by_role('tab',name='Leads',exact=True).click()
     page.get_by_text('Saved in this browser',exact=True).wait_for()
     page.get_by_role('button',name='Import batch',exact=True).first.click()
     page.locator('#import-text').fill(json.dumps(fixture))
@@ -26,7 +26,7 @@ with sync_playwright() as p:
     page.locator('#f-notes').fill('Browser persistence check')
     page.get_by_text('Saved in this browser',exact=True).wait_for()
     page.wait_for_timeout(1100)
-    page.reload()
+    page.reload();page.get_by_role('tab',name='Leads',exact=True).click()
     page.get_by_role('button',name=company,exact=True).click()
     assert page.locator('#f-notes').input_value()=='Browser persistence check'
     page.get_by_role('button',name='Close details',exact=True).click()
@@ -38,6 +38,7 @@ with sync_playwright() as p:
     page.get_by_role('button',name=company,exact=True).click()
     assert page.locator('#f-notes').input_value()=='Browser persistence check'
     page.get_by_role('button',name='Close details',exact=True).click()
+    page.get_by_text('More',exact=True).click()
     with page.expect_download() as d:
         page.get_by_role('button',name='Export backup',exact=True).click()
     target=output/'backup.json'
@@ -54,7 +55,7 @@ with sync_playwright() as p:
     # Exercise storage failure without changing the user's browser profile.
     failed=browser.new_context()
     failed.add_init_script("Object.defineProperty(window, 'indexedDB', {value:{open(){throw new Error('Test storage failure')}}});")
-    fp=failed.new_page();fp.goto(base_url)
+    fp=failed.new_page();fp.goto(base_url);fp.get_by_role('tab',name='Leads',exact=True).click()
     fp.get_by_text('Your saved leads did not load.',exact=True).wait_for()
     assert fp.get_by_role('button',name='Import batch',exact=True).first.is_disabled()
     fp.get_by_role('button',name='Work without saving',exact=True).click()
@@ -62,7 +63,7 @@ with sync_playwright() as p:
     print('Browser: storage failure blocks overwrite and offers memory recovery')
     # A failed write must remain exportable, then succeed on retry.
     quota=browser.new_context(accept_downloads=True)
-    qp=quota.new_page();qp.goto(base_url)
+    qp=quota.new_page();qp.goto(base_url);qp.get_by_role('tab',name='Leads',exact=True).click()
     qp.get_by_text('Saved in this browser',exact=True).wait_for()
     qp.evaluate("() => {window.originalPut=IDBObjectStore.prototype.put; IDBObjectStore.prototype.put=function(){throw new Error('Test quota failure')}}")
     qp.get_by_role('button',name='Import batch',exact=True).first.click()
@@ -73,9 +74,9 @@ with sync_playwright() as p:
     qp.evaluate('() => {IDBObjectStore.prototype.put=window.originalPut}')
     qp.get_by_role('button',name='Retry save',exact=True).click()
     qp.get_by_text('Saved in this browser',exact=True).wait_for()
-    qp.reload();qp.get_by_role('button',name=company,exact=True).wait_for()
+    qp.reload();qp.get_by_role('tab',name='Leads',exact=True).click();qp.get_by_role('button',name=company,exact=True).wait_for()
     # Import the downloaded backup into another empty browser origin store.
-    restored=browser.new_context();rp=restored.new_page();rp.goto(base_url)
+    restored=browser.new_context();rp=restored.new_page();rp.goto(base_url);rp.get_by_role('tab',name='Leads',exact=True).click()
     rp.get_by_text('Saved in this browser',exact=True).wait_for()
     rp.get_by_role('button',name='Import batch',exact=True).first.click()
     rp.locator('#import-text').fill(json.dumps(saved))
@@ -86,7 +87,7 @@ with sync_playwright() as p:
     rp.get_by_role('button',name='Delete…',exact=True).click()
     rp.get_by_role('button',name='Delete lead',exact=True).click()
     rp.get_by_text('Saved in this browser',exact=True).wait_for()
-    rp.reload();rp.get_by_text('Saved in this browser',exact=True).wait_for()
+    rp.reload();rp.get_by_role('tab',name='Leads',exact=True).click();rp.get_by_text('Saved in this browser',exact=True).wait_for()
     assert rp.get_by_role('button',name=company,exact=True).count()==0
     print('Browser: failed-write recovery, backup round trip and delete persistence passed')
 

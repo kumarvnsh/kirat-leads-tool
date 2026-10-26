@@ -3,7 +3,8 @@
   'use strict';
   root.createKiratStore = function (onState) {
     const s = { mode: 'connecting', pending: new Map(), failed: new Map(), running: false, error: '' };
-    let db;
+    let db; const waiters = [];
+    function settled() { if (!s.running && !s.pending.size) waiters.splice(0).forEach(w => s.failed.size ? w.reject(new Error(s.error)) : w.resolve()); }
     const emit = () => onState({ mode: s.mode, error: s.error,
       status: s.mode === 'connecting' ? 'loading' : s.mode === 'load_error' ? 'error' :
         s.mode === 'memory' || s.failed.size ? 'unsaved' : s.pending.size || s.running ? 'saving' : 'saved' });
@@ -30,7 +31,7 @@
         }
         emit();
       }
-      s.running = false; emit();
+      s.running = false; emit(); settled();
     }
     return {
       async connect() {
@@ -53,6 +54,7 @@
           emit(); return null;
         }
       },
+      flush() { if (s.mode !== 'personal') return Promise.reject(new Error('Native register is not ready')); if (!s.running && !s.pending.size) return s.failed.size ? Promise.reject(new Error(s.error)) : Promise.resolve(); return new Promise((resolve,reject)=>waiters.push({resolve,reject})); },
       save(value) { if (s.mode !== 'personal') return emit(); s.pending.set(value.id, value); s.failed.delete(value.id); run(); },
       remove(id) { if (s.mode !== 'personal') return emit(); s.pending.set(id, null); s.failed.delete(id); run(); },
       retry() { s.failed.forEach((v, k) => s.pending.set(k, v)); s.failed.clear(); s.error = ''; run(); },
