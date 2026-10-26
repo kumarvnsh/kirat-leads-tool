@@ -34,8 +34,8 @@ function python() {
   }
   else if (mode === 'discover') {
     const P=require('../lib/providers'),key=P.loadSettings().serper;
-    if(key){const candidates=await P.discover(input.city,key);R.atomicWrite(path.join(root,'.local/candidates.json'),JSON.stringify({source:'Serper',candidates},null,2));console.log(candidates.length+' discovery candidates saved; not yet qualified.');}
-    else require('../lib/harvey').discover(input.city,5);
+    const base=key?await P.discover(input.city,key):require('../lib/harvey').discover(input.city,5),candidates=base.concat(await P.freeSignals(input.city));
+    R.atomicWrite(path.join(root,'.local/candidates.json'),JSON.stringify({source:(key?'Serper':'Harvey')+' + Google News + GeM',candidates},null,2));console.log(candidates.length+' discovery candidates saved; not yet qualified.');
   }
   else if (mode === 'research') {
     const P=require('../lib/providers'),key=P.loadSettings().serper;
@@ -43,6 +43,7 @@ function python() {
     console.log(key?'Finding project signals with Serper (up to five searches)…':'Finding local business candidates with Harvey…');
     try {candidates=key?await P.discover(input.city,key):require('../lib/harvey').discover(input.city,5);}
     catch(e){console.log('Discovery unavailable: '+e.message+'\nContinuing with fresh web research; no previous candidates reused.');}
+    candidates=candidates.concat(await P.freeSignals(input.city));
     const prompt=R.researchPrompt(input.register,candidates)+
       '\nReturn ONLY the final JSON object in your last response, with no Markdown fences or commentary. Do not write files or use shell tools. Use native web search to open and check sources. Never guess source contents. Stop after this one batch. If the candidate listings are weak, find better national/NCR opportunities using web search. Empty leads is valid when nothing qualifies.';
     R.atomicWrite(path.join(root,'.local/research-prompt.txt'),prompt);

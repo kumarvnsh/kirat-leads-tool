@@ -26,6 +26,21 @@ const P=require('../lib/providers'),K=require('../lead-core'),O=require('../lib/
   let calls=0;
   const candidates=await P.discover('Noida, India','key',async(url,options)=>{calls++;assert.equal(url,'https://google.serper.dev/search');assert.equal(JSON.parse(options.body).gl,'in');return {organic:[{title:'Retail plan',link:'https://example.com/news',snippet:'Opening soon'},{title:'bad',link:'file:///tmp/x'}]};});
   assert.equal(calls,5);assert.equal(candidates.length,1);assert.equal(candidates[0].qualified,false);
+  const rss='<rss><item><title>Brand opens &amp; expands - Retail News</title><link>https://news.google.com/rss/articles/abc</link><pubDate>Mon, 28 Sep 2026</pubDate><source url="https://x.example">Retail News</source></item><item><title>bad</title><link>javascript:alert(1)</link></item></rss>';
+  const gemDocs={response:{response:{docs:[{id:'101',b_bid_number:['GEM/2026/B/1'],bd_category_name:['Signage Board'],ba_official_details_deptName:['Delhi Metro'],final_end_date_sort:['2026-11-16T12:00:00Z']},{id:'../x'}]}}};
+  const free=async(url,options={})=>{
+    if(url.startsWith('https://news.google.com/rss/search?'))return {text:rss,cookies:[]};
+    if(url==='https://bidplus.gem.gov.in/all-bids')return {text:'csrf_bd_gem_nk=abc123&x',cookies:['ci_session=s1; path=/']};
+    assert.equal(url,'https://bidplus.gem.gov.in/all-bids-data');assert.equal(options.headers.cookie,'ci_session=s1');
+    const body=new URLSearchParams(options.body);assert.equal(body.get('csrf_bd_gem_nk'),'abc123');assert(JSON.parse(body.get('payload')).param.searchBid);
+    return {text:JSON.stringify(gemDocs),cookies:[]};
+  };
+  const news=await P.newsSignals('Gurugram, India',free);
+  assert.equal(news.length,1);assert.equal(news[0].title,'Brand opens & expands - Retail News');assert.equal(news[0].source,'Google News');
+  const tenders=await P.tenderSignals(free);
+  assert.equal(tenders.length,1);assert.equal(tenders[0].source_url,'https://bidplus.gem.gov.in/showbidDocument/101');assert(tenders[0].notes.includes('closes 2026-11-16'));
+  const logs=[],partial=await P.freeSignals('Noida, India',async url=>{if(url.includes('gem.gov.in'))throw new Error('down');return free(url);},m=>logs.push(m));
+  assert.equal(partial.length,1);assert(logs.some(m=>m.includes('GeM tenders unavailable')));
   const lead={...JSON.parse(fs.readFileSync(path.join(__dirname,'fixture-batch.json'))).leads[0],id:'quality-test'};
   const stage={stage:'planned',source_url:lead.evidence[0].url,checked_on:'2026-10-21',reason:'Announced for next year; procurement unknown.'};
   const draft={generated_on:'2026-10-21',emails:[{subject:'Signage enquiry',body:'Hello team, can we share our services?'},{subject:'Following up',body:'May I contact your projects team?'},{subject:'Closing the loop',body:'Happy to reconnect if relevant.'}]};
