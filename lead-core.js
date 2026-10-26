@@ -18,7 +18,7 @@
     'signal_type', 'opportunity', 'services', 'publication_date', 'event_date', 'researched_on',
     'evidence', 'contacts', 'buyer_role', 'score', 'confidence', 'next_action'];
   var SALES_FIELDS = ['owner', 'status', 'follow_up_date', 'notes', 'studio_reference'];
-  var LEAD_FIELDS = ['id'].concat(RESEARCH_FIELDS, SALES_FIELDS);
+  var LEAD_FIELDS = ['id'].concat(RESEARCH_FIELDS, SALES_FIELDS, ['project_stage', 'outreach_draft']);
 
   // ---------- primitives ----------
   function isObj(v) { return v !== null && typeof v === 'object' && !Array.isArray(v); }
@@ -92,6 +92,36 @@
 
   // ---------- validation ----------
   // mode: 'batch' (research output: sales fields ignored, fresh defaults) or 'backup' (restore: id + sales kept)
+  function validateDraft(draft) {
+    var errors = [];
+    if (!isObj(draft) || !isISODate(draft.generated_on) || !Array.isArray(draft.emails) || draft.emails.length !== 3)
+      return ['Draft needs a generated_on date and exactly three emails.'];
+    draft.emails.forEach(function (e) {
+      if (!isObj(e) || typeof e.subject !== 'string' || !e.subject.trim() || e.subject.length > 200 || /[\r\n]/.test(e.subject) ||
+          typeof e.body !== 'string' || !e.body.trim() || e.body.length > 5000) errors.push('Draft email needs a subject (up to 200 characters) and body (up to 5000).');
+    });
+    return errors;
+  }
+  function correctEmailServices(body) {
+    var intro = 'Kirat Creations provides signage, graphics, display units and turnkey solutions.';
+    return body.replace(/(?:Following up on our note[:,]?\s*)?Kirat Creations (?:provides|offers|supports|would like to introduce)[^\n.!?]*[.!?]?/gi, intro)
+      .replace(/(?:,\s*|\s+(?:and|or)\s+)(?:installation|maintenance|maintainance)(?:\s+(?:services|support|assistance|work))?\b/gi, '')
+      .replace(/\b(?:installation|maintenance|maintainance)(?:\s+(?:services|support|assistance|work))?\b/gi, 'signage and graphics');
+  }
+  function draftSourceKey(lead) {
+    return JSON.stringify({company:lead.company,branch_project:lead.branch_project,city:lead.city,services:lead.services,
+      evidence:lead.evidence,project_stage:lead.project_stage || null,buyer_role:lead.buyer_role,inferred_opportunity:lead.opportunity});
+  }
+  function contactability(contacts) {
+    var people = contacts.some(function (c) { return c.type === 'person'; });
+    var channel = contacts.some(function (c) { return ['email','phone','contact_page'].indexOf(c.type) >= 0 &&
+      ['risky','guess','invalid'].indexOf(c.email_status) < 0 && !(c.delivery_check && ['risky','undeliverable'].indexOf(c.delivery_check.status) >= 0); });
+    return Number(people) + Number(channel);
+  }
+  function priorityRank(lead) {
+    var stage = lead.project_stage && lead.project_stage.stage;
+    return stage === 'planned' || stage === 'in_progress' ? 0 : stage === 'completed' ? 3 : 2;
+  }
   function validateLead(raw, mode) {
     var errors = [], warnings = [];
     var lead = {};
@@ -190,6 +220,14 @@
       if (out.email_status && ['published_only', 'verified', 'risky', 'guess', 'invalid'].indexOf(out.email_status) < 0) errors.push(n + ': invalid email status.');
       if (out.email_status === 'verified' && ver !== 'verified') errors.push(n + ': verified email status needs verification evidence.');
       if (out.scope === 'direct' && (!out.person_name || !out.role || !out.source_excerpt)) errors.push(n + ': direct contact needs person_name, role and source_excerpt.');
+      if (c.delivery_check != null) {
+        var d = c.delivery_check;
+        if (c.type !== 'email' || !isObj(d) || d.provider !== 'Hunter' ||
+            ['deliverable','risky','undeliverable','unknown','pending'].indexOf(d.status) < 0 ||
+            !isISODate(d.checked_on) || typeof d.raw_status !== 'string' || !d.raw_status ||
+            typeof d.evidence !== 'string' || !d.evidence.trim() || (d.verified_on != null && !isISODate(d.verified_on))) errors.push(n + ': invalid delivery check.');
+        else out.delivery_check = {provider:d.provider,status:d.status,raw_status:d.raw_status,checked_on:d.checked_on,verified_on:d.verified_on || null,evidence:d.evidence};
+      }
       lead.contacts.push(out);
     });
 
@@ -209,6 +247,18 @@
 
     oneOf('confidence', CONFIDENCE, 'Confidence');
     optText('next_action', 'Next action');
+
+    if (raw.project_stage != null) {
+      var p = raw.project_stage;
+      if (!isObj(p) || ['planned','in_progress','completed','unknown'].indexOf(p.stage) < 0 ||
+          !isHttpUrl(p.source_url) || !lead.evidence.some(function (e) { return e.url === p.source_url; }) || !isISODate(p.checked_on) || typeof p.reason !== 'string' || !p.reason.trim() || p.reason.length > 2000)
+        errors.push('Project stage needs a valid stage, source, date and explanation.');
+      else lead.project_stage = {stage:p.stage,source_url:p.source_url,checked_on:p.checked_on,reason:p.reason};
+    }
+    if (mode === 'backup' && raw.outreach_draft != null) {
+      errors = errors.concat(validateDraft(raw.outreach_draft));
+      if (!validateDraft(raw.outreach_draft).length) lead.outreach_draft = {generated_on:raw.outreach_draft.generated_on,emails:raw.outreach_draft.emails.map(function (e) { return {subject:e.subject,body:e.body}; })};
+    }
 
     // sales fields
     if (mode === 'backup') {
@@ -297,11 +347,20 @@
     RESEARCH_FIELDS.forEach(function (k) {
       var v = incoming[k];
       if (k === 'evidence') m.evidence = unionBy(existing.evidence || [], v || [], evidenceKey);
-      else if (k === 'contacts') m.contacts = unionBy(existing.contacts || [], v || [], contactKey);
+      else if (k === 'contacts') {
+        m.contacts = unionBy(existing.contacts || [], v || [], contactKey).map(function (c) {
+          var next = (v || []).find(function (x) { return contactKey(x) === contactKey(c); });
+          if (next && next.delivery_check && (!c.delivery_check || next.delivery_check.checked_on > c.delivery_check.checked_on))
+            return Object.assign({}, c, {delivery_check:JSON.parse(JSON.stringify(next.delivery_check))});
+          return c;
+        });
+      }
       else if (k === 'services') m.services = unionBy(existing.services || [], v || [], String);
       else if (v === null || v === '' || (Array.isArray(v) && !v.length)) { /* never overwrite with empty */ }
       else m[k] = JSON.parse(JSON.stringify(v));
     });
+    if (!m.outreach_draft && incoming.outreach_draft) m.outreach_draft = JSON.parse(JSON.stringify(incoming.outreach_draft));
+    if (incoming.project_stage) m.project_stage = JSON.parse(JSON.stringify(incoming.project_stage));
     if (replaceSales) SALES_FIELDS.forEach(function (k) { m[k] = incoming[k]; });
     m.id = existing.id;
     return m;
@@ -405,6 +464,8 @@
     ['Score /10', function (l) { return scoreTotal(l.score); }],
     ['Confidence', function (l) { return l.confidence; }],
     ['Contact evidence', function (l) { return JSON.stringify(l.contacts || []); }],
+    ['Project stage evidence', function (l) { return JSON.stringify(l.project_stage || null); }],
+    ['Outreach draft', function (l) { return JSON.stringify(l.outreach_draft || null); }],
     ['Next action', function (l) { return l.next_action; }],
     ['Owner', function (l) { return l.owner; }],
     ['Status', function (l) { return l.status; }],
@@ -426,6 +487,7 @@
     isISODate: isISODate, isHttpUrl: isHttpUrl, normDomain: normDomain, normText: normText,
     todayInKolkata: todayInKolkata, formatDate: formatDate, daysBetween: daysBetween,
     scoreTotal: scoreTotal, isFollowUpDue: isFollowUpDue, isStale: isStale,
+    correctEmailServices: correctEmailServices, draftSourceKey: draftSourceKey, validateDraft: validateDraft, priorityRank: priorityRank, contactability: contactability,
     validateLead: validateLead, parseEnvelope: parseEnvelope,
     mergeContactList: mergeContactList, dupKey: dupKey, classify: classify, mergeLead: mergeLead, diffLead: diffLead, applyImport: applyImport,
     filterLeads: filterLeads, summarize: summarize, pickLead: pickLead, backupJson: backupJson,

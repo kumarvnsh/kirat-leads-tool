@@ -5,11 +5,12 @@
   "description": "Local Kirat opportunity research and a browser-local lead desk",
   "scripts": {
     "start": "node bin/kirat.js serve",
-    "test": "node test/test-core.js && node test/test-tool.js && node test/test-server.js && node test/test-local.js && node test/test-contacts.js",
+    "test": "node test/test-core.js && node test/test-tool.js && node test/test-server.js && node test/test-local.js && node test/test-contacts.js && node test/test-quality.js && node test/test-mail-api.js && node test/test-mail-presence.js && node test/test-daily.js && node test/test-daily-api.js && node test/test-model-claim.js",
     "build": "node scripts/build.js",
     "doctor": "node bin/kirat.js doctor",
     "app": "node bin/kirat.js app",
-    "install:mac": "zsh scripts/install-mac-app.sh"
+    "install:mac": "zsh scripts/install-mac-app.sh",
+    "test:mail": ".local/venv/bin/python test/test-mail.py && .local/venv/bin/python test/test-mail-transport.py && .local/venv/bin/python test/test-mail-wire.py"
   },
   "engines": {
     "node": ">=20"

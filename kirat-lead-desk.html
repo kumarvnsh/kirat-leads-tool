@@ -184,6 +184,54 @@ tbody tr.picked td { background: var(--accent-soft) }
 .toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(18px + env(safe-area-inset-bottom, 0px)); z-index: 40;
   background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: var(--r); font-size: 14px; max-width: calc(100% - 32px) }
 @media (prefers-reduced-motion: no-preference) { .sheet { animation: slide .18s ease-out } @keyframes slide { from { transform: translateX(24px); opacity: .6 } } }
+
+/* Focused five-tab workspace. Hidden panels keep background work and edits alive. */
+[hidden] { display: none !important }
+:root { --f-body: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; --f-display: var(--f-body) }
+.wrap { gap: 16px; max-width: 1320px }
+.app-header { padding-block: 15px; position: static }
+.company-logo { width: 150px; height: 50px; object-fit: contain }
+.brand h1 {font-size: 21px}
+.main-tabs {display:flex;gap:6px;border-bottom:1px solid var(--line);padding-bottom:8px;position:sticky;top:0;background:var(--bg);z-index:6;overflow-x:auto;min-width:0}
+.main-tabs button {border:0;background:transparent;color:var(--muted);padding:13px 22px;white-space:nowrap;min-height:44px}
+.main-tabs button[aria-selected="true"],.detail-tabs button[aria-selected="true"] {background:var(--accent-soft);color:var(--ink);font-weight:700}
+.main-tabs button:hover {background:var(--sunk)}
+[role="tabpanel"] {min-width:0}
+.page-heading {display:flex;justify-content:space-between;gap:16px;align-items:center;margin:8px 0 20px}
+.page-heading p {margin:5px 0 0}
+.page-heading h2 {font-size:25px}
+.more-menu {position:relative}
+.more-menu summary,.extra-filters summary {cursor:pointer;padding:10px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
+.more-menu[open]>.actions {position:absolute;right:0;top:44px;width:235px;padding:12px;background:var(--surface);box-shadow:0 8px 30px var(--shade);z-index:9;border:1px solid var(--line);border-radius:8px}
+.more-menu .actions>* {width:100%;text-align:left}
+.summary {display:none}
+.filters {padding:14px;margin-bottom:14px}
+.extra-filters[open] {flex-basis:100%}
+.extra-filters>.actions {padding-top:14px;align-items:flex-end}
+.tablebox {margin-bottom:20px;overflow:auto}
+th {font-size:11px;text-transform:uppercase;letter-spacing:.06em}
+td .opp {-webkit-line-clamp:2;line-clamp:2;display:-webkit-box;-webkit-box-orient:vertical;overflow:hidden;max-width:370px}
+.tablebox td.wide {min-width:190px}
+.sheet {width:min(820px,100vw);max-width:100vw}
+.shade {z-index:50}
+.sheet {z-index:51}
+.lead-sheet {z-index:21;top:130px;height:calc(100vh - 145px);bottom:15px;border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 40px var(--shade)}
+.main-tabs {z-index:40}
+.detail-tabs {display:flex;gap:6px;position:sticky;top:0;background:var(--surface);z-index:2;padding:10px 0}
+.detail-tabs button {border:0;min-height:40px;flex:1}
+.sheet-head h2 {font-size:25px}
+.flow-steps {display:flex;gap:22px;flex-wrap:wrap;color:var(--muted);font-size:13px;padding-left:20px;margin:12px 0 20px}
+.daily-row {padding:18px 0;border-bottom:1px solid var(--line)}
+.daily-row:last-child {border-bottom:0}
+.daily-summary {display:flex;gap:16px;align-items:center;justify-content:space-between}
+.daily-opportunity {color:var(--muted);display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;max-width:850px;margin:7px 0}
+.daily-status,.status-pill {font-size:12px;background:var(--sunk);padding:5px 9px;border-radius:20px;white-space:nowrap}
+.daily-details {margin-top:12px;padding:14px;background:var(--sunk);border-radius:8px}
+.email-segments,.mail-segments {display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.email-row,.mail-row {border-bottom:1px solid var(--line);padding:12px 0}
+#panel-settings>.box,#panel-settings>details,#daily-settings-slot>* {margin-bottom:16px}
+@media(max-width:760px) {.page-heading,.daily-summary {align-items:flex-start;flex-direction:column}.main-tabs button {padding:12px 14px}.app-header .actions {gap:5px}.company-logo {width:120px;height:42px}.brand small {display:none}.brand h1 {font-size:18px}.sheet {padding:16px}.filters {gap:10px}}
+@media(prefers-reduced-motion:reduce) {*{scroll-behavior:auto!important;transition:none!important}}
 </style>
 
 <div id="root"><p style="padding:24px 0">Loading Kirat Lead Desk…</p></div>
@@ -235,15 +283,29 @@ async function copyText(t, toast) {
   try { await navigator.clipboard.writeText(t); toast('Copied'); } catch (e) { toast('Copy blocked here. Select the text and copy it manually.'); }
 }
 
+function DraftEditor({draft,onSave,toast}) {
+  const [editing,setEditing]=useState(draft),[error,setError]=useState('');
+  function edit(i,key,value) {setEditing(d=>({...d,emails:d.emails.map((e,j)=>j===i?{...e,[key]:value}:e)}));}
+  function save() {const errors=K.validateDraft(editing);if(errors.length){setError(errors.join(' '));return;}onSave(editing);setError('');toast('Draft edits saved.');}
+  return html`<section class="box"><h3>Saved outreach drafts</h3><p class="muted">Generated ${draft.generated_on}. Review facts and recipient before using. Save edits before closing.</p>
+    ${editing.emails.map((e,i)=>html`<div class="contact" key=${i}><h4>${i===0?'Initial email':'Follow-up '+i}</h4>
+      <label class="field">${'Email '+(i+1)+' subject'}<input aria-label=${'Email '+(i+1)+' subject'} maxLength="200" value=${e.subject} onChange=${ev=>edit(i,'subject',ev.target.value)} /></label>
+      <label class="field">${'Email '+(i+1)+' body'}<textarea aria-label=${'Email '+(i+1)+' body'} rows="7" maxLength="5000" value=${e.body} onChange=${ev=>edit(i,'body',ev.target.value)} /></label>
+      <button onClick=${()=>copyText(e.subject+'\n\n'+e.body,toast)}>Copy ${i===0?'initial email':'follow-up '+i}</button>
+    </div>`)}
+    <button class="primary" onClick=${save}>Save draft edits</button>${error?html`<p class="err" role="alert">${error}</p>`:null}
+  </section>`;
+}
+
 // ---------- detail sheet ----------
-function Detail({ lead, today, onChange, onDelete, onClose, toast }) {
+function Detail({ lead, today, onChange, onDelete, onClose, onNavigate, initialSection='overview', toast }) {
+  const [section,setSection]=useState(initialSection);
   const [confirmDel, setConfirmDel] = useState(false);
   const total = K.scoreTotal(lead.score);
   const age = K.daysBetween(lead.researched_on, today);
   const set = (k) => (e) => onChange(lead.id, { [k]: e.target.value === '' && k === 'follow_up_date' ? null : e.target.value });
   return html`
-  <div class="shade" onClick=${onClose}></div>
-  <aside class="sheet" role="dialog" aria-modal="true" aria-label=${'Lead: ' + lead.company}>
+  <aside class="sheet lead-sheet" role="region" aria-label=${'Lead: ' + lead.company}>
     <div class="sheet-head">
       <div>
         <div class="muted">${SEGMENT_LABEL[lead.segment]} · ${lead.city}${lead.state ? ', ' + lead.state : ''}</div>
@@ -252,8 +314,10 @@ function Detail({ lead, today, onChange, onDelete, onClose, toast }) {
       </div>
       <button class="ghost" onClick=${onClose} aria-label="Close details">Close</button>
     </div>
-    <div class="remind"><b>Check sources yourself before contacting.</b> A correctly formatted link does not prove the page is reachable or accurate. Scores rank research priority; they do not predict a sale.</div>
+    <div class="detail-tabs" role="tablist" aria-label="Lead sections">${[['overview','Overview'],['contacts','Contacts'],['email','Email']].map(([id,label],i,a)=>html`<button role="tab" id=${'lead-tab-'+id} aria-selected=${section===id} aria-controls=${'lead-panel-'+id} tabIndex=${section===id?0:-1} onClick=${()=>setSection(id)} onKeyDown=${e=>{let n;if(e.key==='ArrowRight')n=(i+1)%a.length;if(e.key==='ArrowLeft')n=(i+a.length-1)%a.length;if(n!==undefined){e.preventDefault();setSection(a[n][0]);document.getElementById('lead-tab-'+a[n][0]).focus();}}}>${label}</button>`)}</div>
+    <p class="muted">Published projects show a potential fit. Available work still needs confirmation.</p>
 
+    <section id="lead-panel-overview" role="tabpanel" aria-labelledby="lead-tab-overview" hidden=${section!=='overview'}>
     <section class="box">
       <h3>Signal evidence (reported)</h3>
       <dl class="kv">
@@ -264,6 +328,7 @@ function Detail({ lead, today, onChange, onDelete, onClose, toast }) {
         <dt>Website</dt><dd>${lead.website ? html`<${SafeLink} href=${lead.website} />` : 'Unknown'}</dd>
         <dt>Domain</dt><dd class="mono">${lead.domain || 'Unknown'}</dd>
       </dl>
+      ${lead.project_stage?html`<div class="ev"><b>Project stage: ${lead.project_stage.stage.replace('_',' ')}</b><p>${lead.project_stage.reason}</p><${SafeLink} href=${lead.project_stage.source_url}>Stage evidence<//><span class="muted">Checked ${lead.project_stage.checked_on}</span></div>`:html`<p class="muted">Project stage unknown. An opening announcement alone does not establish an available project.</p>`}
       ${lead.evidence.map((e, i) => html`<div class="ev" key=${i}><${SafeLink} href=${e.url}>${e.title || e.url}<//><span>${e.summary}</span></div>`)}
     </section>
 
@@ -278,32 +343,13 @@ function Detail({ lead, today, onChange, onDelete, onClose, toast }) {
       </dl>
     </section>
 
-    <section class="box">
-      <h3>People and public contacts</h3>
-      ${window.KiratContactPanel ? html`<${window.KiratContactPanel} key=${lead.id} lead=${lead} onApply=${contacts => { const merged = K.mergeContactList(lead.contacts, contacts); const people = merged.some(c => c.type === 'person'); const channel = merged.some(c => ['email','phone','contact_page'].includes(c.type) && !['risky','guess','invalid'].includes(c.email_status)); onChange(lead.id, { contacts: merged, score: Object.assign({}, lead.score, { contactability: Number(people) + Number(channel) }) }); toast('Selected public contacts added.'); }} />` : null}
-      ${lead.contacts.length ? lead.contacts.map((c, i) => html`
-        <div class="contact" key=${i}>
-          <div><span class="chip">${c.type.replace('_', ' ')}</span> <span class=${c.verification === 'verified' ? '' : 'flag'}>${c.email_status && ['risky','guess','invalid'].includes(c.email_status) ? 'Email status: '+c.email_status+' — not verified' : c.verification === 'verified' ? 'Verified' : c.type === 'person' ? 'Named in a public source — role may have changed' : 'Published only — deliverability not verified'}</span></div>
-          ${c.type === 'person' ? html`<div style=${{ display: 'flex', gap: '8px 12px', alignItems: 'baseline', flexWrap: 'wrap' }}><b>${c.value}</b><span class="muted">${c.role}</span>
-              <a href=${'https://www.linkedin.com/search/results/people/?keywords=' + encodeURIComponent(c.value + ' ' + lead.company)} target="_blank" rel="noopener noreferrer">Find on LinkedIn ↗</a></div>`
-          : c.type === 'contact_page' ? html`<${SafeLink} href=${c.value} />` : html`<div style=${{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}><span class="val">${c.value}</span><button class="linkish" onClick=${() => copyText(c.value, toast)}>Copy</button>
-            ${c.type === 'email' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.value) && !['risky','guess','invalid'].includes(c.email_status) ? html`<a href=${'mailto:'+encodeURIComponent(c.value)}>Email</a>` : null}
-            ${c.type === 'phone' && c.value.replace(/\D/g,'').length >= 7 ? html`<a href=${'tel:'+c.value.replace(/[^+\d]/g,'')}>Call</a>` : null}</div>`}
-          ${c.scope ? html`<div class="muted">${c.scope === 'direct' ? 'Direct work contact for '+c.person_name+' · '+c.role : c.scope === 'company' ? 'General company channel' : 'Contact owner not established'}</div>` : null}
-          ${c.checked_on ? html`<div class="muted">Source checked: ${K.formatDate(c.checked_on)}</div>` : null}
-          ${c.source_excerpt ? html`<details><summary>Supporting passage</summary><p>${c.source_excerpt}</p></details>` : null}
-          ${c.verification_evidence ? html`<div class="muted">Verification: ${c.verification_evidence}</div>` : null}
-          <div class="muted">Source: <${SafeLink} href=${c.source_url} /></div>
-        </div>`) : html`<p class="muted">No public contact found. Look for the ${lead.buyer_role || 'projects or procurement team'}.</p>`}
-    </section>
-
-    <section class="box">
-      <h3>Score ${total}/10</h3>
+    <details class="box">
+      <summary>Research score ${total}/10</summary><h3>Score ${total}/10</h3>
       <div class="bars">${Object.keys(K.SCORE_RANGES).map(k => html`
         <div class="bar" key=${k}><span>${SCORE_LABEL[k]}</span>
           <span class="track">${Array.from({ length: K.SCORE_RANGES[k] }, (_, i) => html`<i key=${i} class=${i < lead.score[k] ? 'on' : ''}></i>`)}</span>
           <span class="num muted">${lead.score[k]}/${K.SCORE_RANGES[k]}</span></div>`)}</div>
-    </section>
+    </details>
 
     <section class="box">
       <h3>Sales</h3>
@@ -313,10 +359,35 @@ function Detail({ lead, today, onChange, onDelete, onClose, toast }) {
         <label class="field">Follow-up date<input id="f-follow" type="date" value=${lead.follow_up_date || ''} onChange=${set('follow_up_date')} /></label>
         <label class="field">Studio proposal reference<input id="f-studio" value=${lead.studio_reference} onChange=${set('studio_reference')} placeholder="Typed by you after creating it in Studio" /></label>
       </div>
-      <label class="field">Notes<textarea id="f-notes" rows="5" value=${lead.notes} onChange=${set('notes')}></textarea></label>
+      <label class="field">Notes<textarea aria-label="Notes" id="f-notes" rows="5" value=${lead.notes} onChange=${set('notes')}></textarea></label>
       <div class="muted" style=${{ fontSize: '13px' }}>Changing status records your progress only. Nothing is sent to anyone.</div>
     </section>
 
+    </section>
+    <section id="lead-panel-contacts" role="tabpanel" aria-labelledby="lead-tab-contacts" class="box" hidden=${section!=='contacts'}>
+      <h3>People and public contacts</h3>
+      ${window.KiratContactPanel ? html`<${window.KiratContactPanel} key=${lead.id} lead=${lead} onApply=${contacts => { const merged = K.mergeContactList(lead.contacts, contacts); onChange(lead.id, { contacts: merged, score: Object.assign({}, lead.score, { contactability: K.contactability(merged) }) }); toast('Selected public contacts added.'); }} />` : null}
+      ${lead.contacts.length ? lead.contacts.map((c, i) => html`
+        <div class="contact" key=${i}>
+          <div><span class="chip">${c.type.replace('_', ' ')}</span> <span class=${c.verification === 'verified' ? '' : 'flag'}>${c.email_status && ['risky','guess','invalid'].includes(c.email_status) ? 'Email status: '+c.email_status+' — not verified' : c.verification === 'verified' ? 'Verified' : c.type === 'person' ? 'Named in a public source — role may have changed' : 'Published only — deliverability not verified'}</span></div>
+          ${c.type === 'person' ? html`<div style=${{ display: 'flex', gap: '8px 12px', alignItems: 'baseline', flexWrap: 'wrap' }}><b>${c.value}</b><span class="muted">${c.role}</span>
+              <a href=${'https://www.linkedin.com/search/results/people/?keywords=' + encodeURIComponent(c.value + ' ' + lead.company)} target="_blank" rel="noopener noreferrer">Find on LinkedIn ↗</a></div>`
+          : c.type === 'contact_page' ? html`<${SafeLink} href=${c.value} />` : html`<div style=${{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}><span class="val">${c.value}</span><button class="linkish" onClick=${() => copyText(c.value, toast)}>Copy</button>
+            ${c.type === 'email' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.value) && !['risky','guess','invalid'].includes(c.email_status) && !(c.delivery_check && ['risky','undeliverable'].includes(c.delivery_check.status)) ? html`<a href=${'mailto:'+encodeURIComponent(c.value)}>Email</a>` : null}
+            ${c.type === 'phone' && c.value.replace(/\D/g,'').length >= 7 ? html`<a href=${'tel:'+c.value.replace(/[^+\d]/g,'')}>Call</a>` : null}</div>`}
+          ${c.scope ? html`<div class="muted">${c.scope === 'direct' ? 'Direct work contact for '+c.person_name+' · '+c.role : c.scope === 'company' ? 'General company channel' : 'Contact owner not established'}</div>` : null}
+          ${c.checked_on ? html`<div class="muted">Source checked: ${K.formatDate(c.checked_on)}</div>` : null}
+          ${c.source_excerpt ? html`<details><summary>Supporting passage</summary><p>${c.source_excerpt}</p></details>` : null}
+          ${c.delivery_check?html`<div class="muted">Hunter deliverability: ${c.delivery_check.status} · requested ${c.delivery_check.checked_on}${c.delivery_check.verified_on?' · provider checked '+c.delivery_check.verified_on:''}<br/>${c.delivery_check.evidence}</div>`:null}
+          ${c.verification_evidence ? html`<div class="muted">Verification: ${c.verification_evidence}</div>` : null}
+          <div class="muted">Source: <${SafeLink} href=${c.source_url} /></div>
+        </div>`) : html`<p class="muted">No public contact found. Look for the ${lead.buyer_role || 'projects or procurement team'}.</p>`}
+    </section>
+
+    <section id="lead-panel-email" role="tabpanel" aria-labelledby="lead-tab-email" hidden=${section!=='email'}>    ${window.KiratQualityPanel?html`<${window.KiratQualityPanel} key=${lead.id} lead=${lead} onApply=${patch=>onChange(lead.id,patch.contacts?{...patch,score:{...lead.score,contactability:K.contactability(patch.contacts)}}:patch)} />`:null}
+    ${lead.outreach_draft&&!window.KiratMailLeadPanel?html`<${DraftEditor} key=${lead.id+JSON.stringify(lead.outreach_draft)} draft=${lead.outreach_draft} onSave=${draft=>onChange(lead.id,{outreach_draft:draft})} toast=${toast} />`:null}
+    ${window.KiratMailLeadPanel?html`<${window.KiratMailLeadPanel} key=${lead.id} lead=${lead} onNavigate=${onNavigate} onSaveDraft=${draft=>onChange(lead.id,{outreach_draft:draft})}/>`:null}
+    </section>
     <div style=${{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
       <span class="muted mono">ID ${lead.id}</span>
       <span style=${{ marginLeft: 'auto' }}></span>
@@ -446,6 +517,9 @@ const EMPTY_F = { q: '', segment: '', city: '', service: '', minScore: '', statu
 
 function App() {
   const [leads, setLeads] = useState([]);
+  const [tab,setTab]=useState('today'),[researchOpen,setResearchOpen]=useState(false),[detailSection,setDetailSection]=useState('overview');
+  const navigate=useCallback((name,itemId)=>{if(['today','leads','emails','replies','settings'].includes(name)){setTab(name);window.scrollTo(0,0);if(name==='emails'&&itemId)window.dispatchEvent(new CustomEvent('kirat-open-email',{detail:{id:itemId}}));}},[]);
+  const openDailyLead=useCallback(id=>{setTab('leads');setDetailSection('contacts');setSel(id);},[]);
   const [st, setSt] = useState({ mode: 'connecting', status: 'loading', error: '' });
   const [f, setF] = useState(EMPTY_F);
   const [sel, setSel] = useState(null);
@@ -456,12 +530,37 @@ function App() {
   const [toastMsg, setToastMsg] = useState('');
   const store = useMemo(() => createStore(setSt), []);
   const leadsRef = useRef(leads); leadsRef.current = leads;
+  const addDaily = useCallback(async additions => {
+    if (store.mode !== 'personal') throw new Error('Wait for your saved register to load.');
+    const next = [...leadsRef.current], acknowledged = [];
+    for (const {card_id, lead} of additions) {
+      if (K.validateLead(lead, 'backup').errors.length) throw new Error('Invalid prepared lead.');
+      if (!next.some(l => l.id === lead.id || K.dupKey(l) === K.dupKey(lead))) {
+        next.push(lead); store.save(lead);
+      }
+      acknowledged.push(card_id);
+    }
+    leadsRef.current = next; setLeads(next);
+    await store.flush();
+    return acknowledged;
+  }, [store]);
   const today = K.todayInKolkata();
 
   const toast = useCallback((m) => { setToastMsg(m); clearTimeout(toast.t); toast.t = setTimeout(() => setToastMsg(''), 3200); }, []);
 
-  const load = useCallback(async () => { const l = await store.connect(); if (l) setLeads(l); }, [store]);
-  useEffect(() => { load(); }, [load]);
+  const load = useCallback(async () => {
+    const saved = await store.connect();
+    if (saved) {
+      const updated=saved.map(lead=>{
+        if(!lead.outreach_draft)return lead;
+        const draft={...lead.outreach_draft,emails:lead.outreach_draft.emails.map(e=>({...e,body:K.correctEmailServices(e.body)}))};
+        if(JSON.stringify(draft)===JSON.stringify(lead.outreach_draft))return lead;
+        const next={...lead,outreach_draft:draft};store.save(next);return next;
+      });
+      leadsRef.current=updated;setLeads(updated);
+    }
+  }, [store]);
+  useEffect(() => { if('scrollRestoration' in history)history.scrollRestoration='manual';window.scrollTo(0,0);load(); }, [load]);
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') { setSel(null); setImporting(false); setFallback(null); } };
     addEventListener('keydown', onKey); return () => removeEventListener('keydown', onKey);
@@ -510,7 +609,7 @@ function App() {
   };
   const exportBackup = () => offer('kirat-leads-backup-' + today + '.json', K.backupJson(leadsRef.current));
   const shown = useMemo(() => K.filterLeads(leads, f, today).sort((a, b) =>
-    (b.researched_on || '').localeCompare(a.researched_on || '') || K.scoreTotal(b.score) - K.scoreTotal(a.score)), [leads, f, today]);
+    K.priorityRank(a) - K.priorityRank(b) || (b.researched_on || '').localeCompare(a.researched_on || '') || K.scoreTotal(b.score) - K.scoreTotal(a.score)), [leads, f, today]);
   const exportCsv = () => offer('kirat-leads-' + today + '.csv', K.toCsv(shown));
 
   const sum = K.summarize(leads, today);
@@ -524,20 +623,11 @@ function App() {
   const toggleAllShown = () => { setConfirmBulk(false); setPicked(allShownPicked ? pickedIds.filter(id => !shown.some(l => l.id === id)) : [...new Set(pickedIds.concat(shown.map(l => l.id)))]); };
 
   return html`<div class="wrap">
-    <header class="top">
-      <div class="brand"><img class="company-logo" src="assets/kirat-logo.svg#svgView(viewBox(10,33,232,79))" alt="Kirat Creations" /><div><h1>Lead Desk</h1><small>Signage, graphics & display leads · India and Delhi NCR</small></div></div>
-      <div class="actions">
-        <${SaveBadge} st=${st} onClick=${st.status === 'error' ? load : exportBackup} />
-        <button class="primary" onClick=${() => setImporting(true)} disabled=${!canWrite}>Import batch</button>
-        <button onClick=${exportBackup} disabled=${!canWrite}>Export backup</button>
-        <button onClick=${exportCsv} disabled=${!shown.length}>Export CSV (${shown.length})</button>
-        <button onClick=${copyPrompt}>Copy research prompt</button>
-        <a class="btn" href=${PROJECT_URL} target="_blank" rel="noopener noreferrer">Open research Project ↗</a>
-        <a class="btn" href=${STUDIO_URL} target="_blank" rel="noopener noreferrer">Open Signage Studio ↗</a>
-      </div>
+    <header class="top app-header">
+      <div class="brand"><img class="company-logo" src="assets/kirat-logo.svg#svgView(viewBox(10,33,232,79))" alt="Kirat Creations" /><div><h1>Lead Desk</h1><small>Your daily business development workspace</small></div></div>
+      <div class="actions"><${SaveBadge} st=${st} onClick=${st.status === 'error' ? load : exportBackup} />${window.KiratMailStatus?html`<${window.KiratMailStatus} onNavigate=${navigate}/>`:null}</div>
     </header>
-
-    <div class="notice"><span>${window.KiratNative ? "Research runs locally. Your register saves on this Mac; export backups regularly." : "Research runs on your Mac. Import a reviewed JSON batch here. Leads save in this browser only; export backups regularly."}</span><span>Today in India: <b class="num">${K.formatDate(today)}</b></span></div>
+    <nav class="main-tabs" role="tablist" aria-label="Main navigation">${[['today','Today'],['leads','Leads'],['emails','Emails'],['replies','Replies'],['settings','Settings']].map(([id,label],i,all)=>html`<button key=${id} id=${'tab-'+id} role="tab" aria-selected=${tab===id} aria-controls=${'panel-'+id} tabIndex=${tab===id?0:-1} onClick=${()=>navigate(id)} onKeyDown=${e=>{let n;if(e.key==='ArrowRight')n=(i+1)%all.length;if(e.key==='ArrowLeft')n=(i+all.length-1)%all.length;if(e.key==='Home')n=0;if(e.key==='End')n=all.length-1;if(n!==undefined){e.preventDefault();navigate(all[n][0]);document.getElementById('tab-'+all[n][0]).focus();}}}>${label}${window.KiratMailBadge&&['emails','replies'].includes(id)?html`<${window.KiratMailBadge} kind=${id}/>`:null}</button>`)}</nav>
 
     ${st.mode === 'load_error' ? html`<div class="banner" role="alert"><strong>Your saved leads did not load.</strong><span>${st.error}</span>
       <button onClick=${load}>Try again</button><button class="ghost" onClick=${() => store.useMemory()}>Work without saving</button></div>` : null}
@@ -546,8 +636,12 @@ function App() {
     ${st.mode === 'personal' && st.status === 'unsaved' ? html`<div class="banner" role="alert"><strong>Unsaved — download backup</strong><span>${st.error}</span>
       <button onClick=${() => store.retry()}>Retry save</button><button onClick=${exportBackup}>Export backup</button></div>` : null}
 
-    ${window.KiratLocalPanel ? html`<${window.KiratLocalPanel} getRegister=${() => JSON.parse(K.backupJson(leadsRef.current))} onReview=${batch => setImporting({ text: JSON.stringify(batch) })} />` : null}
-
+    <section id="panel-today" role="tabpanel" aria-labelledby="tab-today" hidden=${tab!=='today'}>
+      ${window.KiratDailyPanel ? html`<${window.KiratDailyPanel} getRegister=${() => JSON.parse(K.backupJson(leadsRef.current))} onAdditions=${addDaily} ready=${st.mode === 'personal'} view=${tab} onNavigate=${navigate} onOpenLead=${openDailyLead}/>` : html`<div class="box"><h2>Today</h2><p>Open Leads to review your saved companies. Daily research is available in the Mac app.</p><button onClick=${()=>navigate('leads')}>Open leads</button></div>`}
+    </section>
+    <section id="panel-leads" role="tabpanel" aria-labelledby="tab-leads" hidden=${tab!=='leads'}>
+      <div class="page-heading"><div><h2>Leads</h2><p class="muted">${leads.length} saved companies and projects</p></div><div class="actions">${window.KiratLocalPanel?html`<button class="primary" onClick=${()=>setResearchOpen(v=>!v)}>Find leads</button>`:null}<button onClick=${()=>setImporting(true)} disabled=${!canWrite}>Import batch</button><details class="more-menu"><summary>More</summary><div class="actions"><button onClick=${exportBackup} disabled=${!canWrite}>Export backup</button><button onClick=${exportCsv} disabled=${!shown.length}>Export CSV (${shown.length})</button><button onClick=${copyPrompt}>Copy research prompt</button><a class="btn" href=${PROJECT_URL} target="_blank" rel="noopener noreferrer">Open research Project ↗</a><a class="btn" href=${STUDIO_URL} target="_blank" rel="noopener noreferrer">Open Signage Studio ↗</a></div></details></div></div>
+      <div hidden=${!researchOpen}>${window.KiratLocalPanel?html`<${window.KiratLocalPanel} getRegister=${()=>JSON.parse(K.backupJson(leadsRef.current))} onReview=${batch=>setImporting({text:JSON.stringify(batch)})}/>`:null}</div>
     <div class="summary">
       <div class="tile"><div class="k">Total leads</div><div class="v">${sum.total}</div></div>
       <button class="tile" onClick=${() => setF(Object.assign({}, EMPTY_F, { status: 'New' }))}><div class="k">New</div><div class="v">${sum.fresh}</div></button>
@@ -558,11 +652,12 @@ function App() {
     ${leads.length ? html`
     <div class="filters">
       <label class="field grow">Search<input id="q" type="search" value=${f.q} onChange=${upd('q')} placeholder="Company, branch, notes…" /></label>
-      <label class="field">Segment<select id="seg" value=${f.segment} onChange=${upd('segment')}><option value="">All</option>${K.SEGMENTS.map(s => html`<option key=${s} value=${s}>${SEGMENT_LABEL[s]}</option>`)}</select></label>
+      <label class="field">Status<select id="status" value=${f.status} onChange=${upd('status')}><option value="">All</option>${K.STATUSES.map(s => html`<option key=${s}>${s}</option>`)}</select></label>
+      <details class="extra-filters"><summary>More filters</summary><div class="actions">      <label class="field">Segment<select id="seg" value=${f.segment} onChange=${upd('segment')}><option value="">All</option>${K.SEGMENTS.map(s => html`<option key=${s} value=${s}>${SEGMENT_LABEL[s]}</option>`)}</select></label>
       <label class="field">City<select id="city" value=${f.city} onChange=${upd('city')}><option value="">All</option>${cities.map(c => html`<option key=${c}>${c}</option>`)}</select></label>
       <label class="field">Service<select id="svc" value=${f.service} onChange=${upd('service')}><option value="">All</option>${K.SERVICES.map(s => html`<option key=${s}>${s}</option>`)}</select></label>
       <label class="field">Min score<select id="min" value=${f.minScore} onChange=${upd('minScore')}><option value="">Any</option>${[2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => html`<option key=${n} value=${n}>${n}+</option>`)}</select></label>
-      <label class="field">Status<select id="status" value=${f.status} onChange=${upd('status')}><option value="">All</option>${K.STATUSES.map(s => html`<option key=${s}>${s}</option>`)}</select></label>
+</div></details>
       <label class="check" style=${{ alignSelf: 'center' }}><input id="due" type="checkbox" checked=${f.due} onChange=${upd('due')} />Due only</label>
       <button onClick=${() => setF(EMPTY_F)} disabled=${!filtered}>Clear filters</button>
       <span class="count num">Showing ${shown.length} of ${leads.length}</span>
@@ -578,20 +673,16 @@ function App() {
     </div>` : null}
 
     ${shown.length ? html`<div class="tablebox"><table>
-      <thead><tr><th class="pick"><input type="checkbox" aria-label="Select all shown leads" checked=${allShownPicked} onChange=${toggleAllShown} /></th><th>Company</th><th>Branch / project</th><th>Location</th><th>Opportunity (inferred)</th><th>Score</th><th>Confidence</th><th>Researched</th><th>Status</th><th>Follow-up</th></tr></thead>
+      <thead><tr><th class="pick"><input type="checkbox" aria-label="Select all shown leads" checked=${allShownPicked} onChange=${toggleAllShown} /></th><th>Company</th><th>Location</th><th>Opportunity</th><th>Status</th><th>Next action</th></tr></thead>
       <tbody>${shown.map(l => {
-        const due = K.isFollowUpDue(l, today), total = K.scoreTotal(l.score), age = K.daysBetween(l.researched_on, today);
-        return html`<tr key=${l.id} onClick=${() => setSel(l.id)} class=${pickedIds.indexOf(l.id) >= 0 ? 'picked' : ''}>
+        const due = K.isFollowUpDue(l, today), hasRecipient=l.contacts.some(c=>c.type==='email'&&!/^(support|care|customercare|customer[._-]?service|help)@/i.test(c.value)&&c.delivery_check?.status!=='undeliverable');
+        return html`<tr key=${l.id} onClick=${() => {setDetailSection('overview');setSel(l.id);}} class=${pickedIds.indexOf(l.id) >= 0 ? 'picked' : ''}>
           <td class="pick" onClick=${e => e.stopPropagation()}><input type="checkbox" aria-label=${'Select ' + l.company} checked=${pickedIds.indexOf(l.id) >= 0} onChange=${() => togglePick(l.id)} /></td>
-          <td class="wide"><button class="linkish co" onClick=${e => { e.stopPropagation(); setSel(l.id); }}>${l.company}</button><div class="muted" style=${{ fontSize: '12.5px' }}>${SEGMENT_LABEL[l.segment]}</div></td>
-          <td class="wide" data-l="Branch / project">${l.branch_project}</td>
+          <td class="wide"><button class="linkish co" onClick=${e => { e.stopPropagation(); setDetailSection('overview');setSel(l.id); }}>${l.company}</button><div class="muted" style=${{ fontSize: '12.5px' }}>${SEGMENT_LABEL[l.segment]}</div></td>
           <td data-l="Location">${l.city}${l.state ? html`<div class="muted" style=${{ fontSize: '12.5px' }}>${l.state}</div>` : null}</td>
           <td class="wide" data-l="Opportunity (inferred)"><div class="opp">${l.opportunity}</div></td>
-          <td data-l="Score" class="num" style=${{ whiteSpace: 'nowrap' }}><${Meter} total=${total} />${total}</td>
-          <td data-l="Confidence">${l.confidence}</td>
-          <td data-l="Researched" class="num" style=${{ whiteSpace: 'nowrap' }}>${K.formatDate(l.researched_on)}<div class=${age > K.STALE_DAYS ? 'flag' : 'muted'} style=${{ fontSize: '12px' }}>${age}d ago${age > K.STALE_DAYS ? ' · old' : ''}</div></td>
           <td data-l="Status"><span class=${'chip st-' + l.status}>${l.status}</span></td>
-          <td data-l="Follow-up" class="num" style=${{ whiteSpace: 'nowrap' }}>${l.follow_up_date ? K.formatDate(l.follow_up_date) : '—'}${due ? html`<div class="flag bad">Due</div>` : null}</td>
+          <td data-l="Next action"><button class="ghost" onClick=${e=>{e.stopPropagation();setDetailSection(hasRecipient?'email':'contacts');setSel(l.id);}}>${!hasRecipient?'Find contact':due?'Follow up':l.outreach_draft?'Review email':'Prepare email'}</button></td>
         </tr>`;
       })}</tbody></table></div>`
     : html`<div class="empty"><h2>No leads match these filters</h2><p>${leads.length} lead(s) are hidden by the current filters.</p><div><button onClick=${() => setF(EMPTY_F)}>Clear filters</button></div></div>`}
@@ -611,13 +702,17 @@ function App() {
       <div><button class="primary" onClick=${() => setImporting(true)} disabled=${!canWrite}>Import batch</button></div>
     </div>`}
 
-    ${selected ? html`<${Detail} lead=${selected} today=${today} onChange=${editLead} onDelete=${deleteLead} onClose=${() => setSel(null)} toast=${toast} />` : null}
+    </section>
+    <section id="panel-emails" role="tabpanel" aria-labelledby="tab-emails" hidden=${tab!=='emails'}>${window.KiratMailPanel?html`<${window.KiratMailPanel} view="emails" onNavigate=${navigate}/>`:html`<div class="box"><h2>Emails</h2><p>Email sending is available in Kirat Lead Desk for Mac.</p></div>`}</section>
+    <section id="panel-replies" role="tabpanel" aria-labelledby="tab-replies" hidden=${tab!=='replies'}>${window.KiratMailPanel?html`<${window.KiratMailPanel} view="replies" onNavigate=${navigate}/>`:html`<div class="box"><h2>Replies</h2><p>Open the Mac app to check replies.</p></div>`}</section>
+    <section id="panel-settings" role="tabpanel" aria-labelledby="tab-settings" hidden=${tab!=='settings'}><div class="page-heading"><div><h2>Settings</h2><p class="muted">Your account, signature and daily preparation</p></div></div>${window.KiratMailPanel?html`<${window.KiratMailPanel} view="settings" onNavigate=${navigate}/>`:null}<div id="daily-settings-slot"></div><details class="box"><summary>Advanced</summary>${window.KiratProviderSettings?html`<${window.KiratProviderSettings}/>`:null}${window.KiratLocalPanel?html`<${window.KiratLocalPanel} mode="advanced" getRegister=${()=>JSON.parse(K.backupJson(leadsRef.current))} onReview=${batch=>{setTab('leads');setImporting({text:JSON.stringify(batch)});}}/>`:html`<p>This register saves in your browser. Export backups from Leads → More.</p>`}</details></section>
+    <div hidden=${tab!=='leads'}>${selected ? html`<${Detail} key=${selected.id} initialSection=${detailSection} lead=${selected} today=${today} onChange=${editLead} onDelete=${deleteLead} onClose=${() => setSel(null)} onNavigate=${navigate} toast=${toast} />` : null}</div>
     ${importing ? html`<${Import} leads=${leads} canWrite=${canWrite} initialText=${importing.text} onApply=${applyImport} onClose=${() => setImporting(false)} />` : null}
     ${fallback ? html`<${Fallback} file=${fallback} onClose=${() => setFallback(null)} toast=${toast} />` : null}
     ${toastMsg ? html`<div class="toast" role="status">${toastMsg}</div>` : null}
   </div>`;
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(html`<${App} />`);
+ReactDOM.createRoot(document.getElementById('root')).render(window.KiratMailProvider?html`<${window.KiratMailProvider}><${App}/></${window.KiratMailProvider}>`:html`<${App}/>`);
 })();
 </script>
