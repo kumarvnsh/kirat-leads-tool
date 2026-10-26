@@ -9,6 +9,12 @@ if [[ -e "$APP" && ! -f "$APP/Contents/Resources/kirat-launcher.txt" ]]; then
 fi
 BUILD="$(mktemp -d /tmp/kirat-app.XXXXXX)"
 trap 'rm -rf "$BUILD"' EXIT
+KEYCHAIN_DIR="$ROOT/.local/bin"
+mkdir -p "$KEYCHAIN_DIR"
+/usr/bin/xcrun swiftc "$ROOT/mac/KiratKeychain.swift" -o "$BUILD/kirat-keychain" -framework Security -target "$(uname -m)-apple-macosx13.0"
+/usr/bin/codesign --force --sign - --identifier com.kiratcreations.leaddesk.keychain "$BUILD/kirat-keychain"
+mv "$BUILD/kirat-keychain" "$KEYCHAIN_DIR/kirat-keychain"
+chmod 700 "$KEYCHAIN_DIR/kirat-keychain"
 BUNDLE="$BUILD/Kirat Lead Desk.app"
 mkdir -p "$BUNDLE/Contents/MacOS" "$BUNDLE/Contents/Resources"
 /usr/bin/xcrun swiftc "$ROOT/mac/KiratApp.swift" -o "$BUNDLE/Contents/MacOS/KiratLeadDesk" -framework Cocoa -framework WebKit -target "$(uname -m)-apple-macosx13.0"
@@ -24,8 +30,8 @@ cat >"$BUNDLE/Contents/Info.plist" <<'PLIST'
 <key>CFBundleName</key><string>Kirat Lead Desk</string>
 <key>CFBundleDisplayName</key><string>Kirat Lead Desk</string>
 <key>CFBundlePackageType</key><string>APPL</string>
-<key>CFBundleShortVersionString</key><string>1.1</string>
-<key>CFBundleVersion</key><string>2</string>
+<key>CFBundleShortVersionString</key><string>1.4</string>
+<key>CFBundleVersion</key><string>5</string>
 <key>CFBundleIconFile</key><string>Kirat</string>
 <key>NSHighResolutionCapable</key><true/>
 <key>NSAppTransportSecurity</key><dict><key>NSAllowsLocalNetworking</key><true/></dict>
