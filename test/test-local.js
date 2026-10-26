@@ -6,7 +6,8 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 (async()=>{
  const jobs=createJobs({worker:path.join(__dirname,'fake-worker.js'),timeout:2000});
  const port=53000+Math.floor(Math.random()*5000),base='http://127.0.0.1:'+port;
- const server=start({port,jobs,autoSetup:false});await new Promise(r=>server.once('listening',r));
+ const settingsPath=path.join(require('node:os').tmpdir(),'kirat-settings-'+port+'.json');
+ const server=start({port,jobs,autoSetup:false,settingsPath});await new Promise(r=>server.once('listening',r));
  try {
   assert.equal((await fetch(base+'/api/status')).status,401);
   const root=await fetch(base);const cookie=root.headers.get('set-cookie').split(';')[0];assert(root.headers.get('set-cookie').includes('HttpOnly'));
@@ -15,6 +16,13 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
   assert.equal((await fetch(base+'/api/job',{method:'POST',headers:{Cookie:cookie},body:'{}'})).status,403);
   const headers={Cookie:cookie,Origin:base,'X-Kirat-Local':'1','Content-Type':'application/json'};
   const post=(route,input)=>fetch(base+'/api/'+route,{method:'POST',headers,body:JSON.stringify(input)});
+  assert.equal((await post('settings',{hunter:'test-secret'})).status,200);
+  const status=await (await fetch(base+'/api/status',{headers:{Cookie:cookie}})).text();
+  assert(!status.includes('test-secret'));assert(JSON.parse(status).providers.hunter);
+  const malformed=await fetch(base+'/api/settings',{method:'POST',headers,body:'{"hunter":private-malformed-secret}'});
+  assert.equal(malformed.status,400);assert(!(await malformed.text()).includes('private-malformed-secret'));
+  assert.equal((await post('settings',{hunter:''})).status,200);
+  assert.equal((await post('settings',{arbitrary:'x'})).status,400);
   assert.equal((await post('job',{kind:'exec'})).status,400);
   assert.equal((await post('job',{kind:'research',register:{leads:[{}]}})).status,400);
   assert.equal((await post('job',{kind:'discover',city:'Noida, India'})).status,200);
@@ -31,8 +39,17 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
   for(let i=0;i<30&&jobs.snapshot().status==='running';i++)await sleep(50);
   assert.equal(jobs.snapshot().status,'complete');assert.equal(jobs.snapshot().contact_result.contacts[0].role,'Projects Manager');
   require('node:fs').rmSync(path.join(__dirname,'../.local/jobs',jobs.snapshot().id+'.contacts.json'),{force:true});
+  assert.equal((await post('job',{kind:'verify',lead:contactLead,email:'absent@example.com'})).status,400);
+  assert.equal((await post('job',{kind:'draft',lead:contactLead})).status,200);
+  for(let i=0;i<30&&jobs.snapshot().status==='running';i++)await sleep(50);
+  assert.equal(jobs.snapshot().status,'complete');assert.equal(jobs.snapshot().quality_result.draft.emails.length,3);
+  require('node:fs').rmSync(path.join(__dirname,'../.local/jobs',jobs.snapshot().id+'.quality.json'),{force:true});
+  assert.equal((await post('job',{kind:'verify',lead:contactLead,email:contactLead.contacts[0].value,city:'Faridabad, India'})).status,200);
+  for(let i=0;i<30&&jobs.snapshot().status==='running';i++)await sleep(50);
+  assert.equal(jobs.snapshot().status,'failed');
+  require('node:fs').rmSync(path.join(__dirname,'../.local/jobs',jobs.snapshot().id+'.quality.json'),{force:true});
   assert.equal((await fetch(base+'/.local/candidates.json')).status,404);
   const invalid=await new Promise((resolve,reject)=>http.get(base,{headers:{Host:'evil.example'}},r=>{r.resume();resolve(r.statusCode);}).on('error',reject));assert.equal(invalid,403);
   console.log('local app: authentication, CSRF, fixed operations, register validation, busy jobs, cancellation and research result passed');
- }finally {jobs.stop();server.closeAllConnections();await new Promise(r=>server.close(r));}
+ }finally {require('node:fs').rmSync(settingsPath,{force:true});jobs.stop();server.closeAllConnections();await new Promise(r=>server.close(r));}
 })().catch(e=>{console.error(e);process.exitCode=1;});
